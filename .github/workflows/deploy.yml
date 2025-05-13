@@ -5,9 +5,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Create env file
         run: |
@@ -15,10 +19,15 @@ jobs:
           echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> .env.js
           echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> .env.js
       
+      - name: Debug
+        run: |
+          ls -la
+          git status
+      
       - name: Commit changes
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
           git add .env.js
           git commit -m "Add environment variables" || echo "No changes to commit"
-          git push
+          git push || git push --set-upstream origin HEAD 2>&1
