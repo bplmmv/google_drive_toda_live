@@ -32,6 +32,7 @@ const API_SCOPE = 'https://www.googleapis.com/auth/drive.file ' +
                  'https://www.googleapis.com/auth/drive ' + 
                  'https://www.googleapis.com/auth/drive.readonly ' +
                  'https://www.googleapis.com/auth/drive.metadata.readonly ' +
+                 'https://www.googleapis.com/auth/drive.appdata ' +
                  'https://www.googleapis.com/auth/spreadsheets ' +
                  'https://www.googleapis.com/auth/spreadsheets.readonly';
                  
@@ -75,8 +76,6 @@ function initializeApp() {
   document.getElementById('login-btn').addEventListener('click', handleAuthClick);
 }
 
-// Update the initGapiClient function with more robust error handling
-
 async function initGapiClient() {
   console.log('Initializing GAPI client');
   
@@ -94,9 +93,10 @@ async function initGapiClient() {
         reject(new Error('Initialization timed out after 10 seconds'));
       }, 10000);
       
+      // Try direct discovery URL with key included
       gapi.client.init({
         apiKey: GOOGLE_API_KEY,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest?key=' + GOOGLE_API_KEY]
       }).then(() => {
         clearTimeout(initTimeout);
         console.log("Google API client initialized successfully");
@@ -131,72 +131,40 @@ async function initGapiClient() {
   }
 }
 
-// Update the loadDriveFiles function to handle missing results better
-async function loadDriveFiles(folderId = 'root') {
+async function loadSheetsAPI() {
+  console.log("Loading Google Sheets API...");
+  
   try {
-    // Display loading state
-    document.getElementById('file-list').innerHTML = '<div class="loading">Loading files...</div>';
-    
-    // Update the breadcrumb navigation
-    renderBreadcrumbs();
-    
-    // Query for files and folders in the current folder
-    const folderQuery = folderId === 'root' ? "'root' in parents" : `'${folderId}' in parents`;
-    
-    console.log(`Fetching files with query: ${folderQuery}`);
-    
-    // Add some additional error handling for the API request
-    try {
-      const filesResponse = await gapi.client.drive.files.list({
-        'pageSize': 100,
-        'fields': 'files(id, name, mimeType, iconLink, parents)',
-        'q': `${folderQuery} and trashed=false`,
-        'includeItemsFromAllDrives': true,
-        'supportsAllDrives': true
-      });
+    // Load the sheets API
+    await new Promise((resolve, reject) => {
+      const loadTimeout = setTimeout(() => {
+        reject(new Error('Loading Sheets API timed out after 5 seconds'));
+      }, 5000);
       
-      console.log("Files response:", filesResponse);
-      
-      if (!filesResponse || !filesResponse.result) {
-        throw new Error("Invalid API response structure - missing result object");
-      }
-      
-      const items = filesResponse.result.files || [];
-      console.log(`Found ${items.length} items`);
-      
-      // Separate documents, spreadsheets and folders
-      const folders = items.filter(item => item.mimeType === 'application/vnd.google-apps.folder');
-      const docs = items.filter(item => item.mimeType === 'application/vnd.google-apps.document');
-      const sheets = items.filter(item => item.mimeType === 'application/vnd.google-apps.spreadsheet');
-      
-      // Sort alphabetically
-      folders.sort((a, b) => a.name.localeCompare(b.name));
-      docs.sort((a, b) => a.name.localeCompare(b.name));
-      sheets.sort((a, b) => a.name.localeCompare(b.name));
-      
-      renderFiles(folders, docs, sheets);
-      
-      // Load shared drives if we're at the root level
-      if (folderId === 'root') {
-        await loadSharedDrives();
-      }
-    } catch (apiError) {
-      console.error("API request failed:", apiError);
-      throw new Error(`API request failed: ${apiError.message || 'Unknown API error'}`);
-    }
+      gapi.client.load('sheets', 'v4')
+        .then(() => {
+          clearTimeout(loadTimeout);
+          console.log("Sheets API loaded successfully");
+          resolve();
+        })
+        .catch(err => {
+          clearTimeout(loadTimeout);
+          console.error("Error loading Sheets API:", err);
+          reject(err);
+        });
+    });
   } catch (error) {
-    console.error('Error loading files', error);
-    document.getElementById('file-list').innerHTML = `
-      <div class="error-message">
-        <p>Error loading files.</p>
-        <p>Details: ${error.message || 'Unknown error'}</p>
-        <button onclick="loadDriveFiles('${folderId}')">Try Again</button>
-      </div>
-    `;
+    console.error("Failed to load Sheets API:", error);
+    throw new Error(`Could not load Sheets API: ${error.message}`);
   }
 }
 
-// Update handleAuthResponse to handle initialization errors
+function handleAuthClick() {
+  if (!isAuthenticated) {
+    tokenClient.requestAccessToken();
+  }
+}
+
 function handleAuthResponse(response) {
   if (response.error !== undefined) {
     console.error('Auth error:', response);
@@ -236,7 +204,6 @@ function handleAuthResponse(response) {
   }
 }
 
-// Make initializeAppFunctionality return a promise so we can catch errors
 function initializeAppFunctionality() {
   return new Promise((resolve, reject) => {
     try {
@@ -343,31 +310,46 @@ async function loadDriveFiles(folderId = 'root') {
     // Query for files and folders in the current folder
     const folderQuery = folderId === 'root' ? "'root' in parents" : `'${folderId}' in parents`;
     
-    const filesResponse = await gapi.client.drive.files.list({
-      'pageSize': 100,
-      'fields': 'files(id, name, mimeType, iconLink, parents)',
-      'q': `${folderQuery} and trashed=false`,
-      'includeItemsFromAllDrives': true,
-      'supportsAllDrives': true
-    });
+    console.log(`Fetching files with query: ${folderQuery}`);
     
-    const items = filesResponse.result.files || [];
-    
-    // Separate documents, spreadsheets and folders
-    const folders = items.filter(item => item.mimeType === 'application/vnd.google-apps.folder');
-    const docs = items.filter(item => item.mimeType === 'application/vnd.google-apps.document');
-    const sheets = items.filter(item => item.mimeType === 'application/vnd.google-apps.spreadsheet');
-    
-    // Sort alphabetically
-    folders.sort((a, b) => a.name.localeCompare(b.name));
-    docs.sort((a, b) => a.name.localeCompare(b.name));
-    sheets.sort((a, b) => a.name.localeCompare(b.name));
-    
-    renderFiles(folders, docs, sheets);
-    
-    // Load shared drives if we're at the root level
-    if (folderId === 'root') {
-      await loadSharedDrives();
+    // Add some additional error handling for the API request
+    try {
+      const filesResponse = await gapi.client.drive.files.list({
+        'pageSize': 100,
+        'fields': 'files(id, name, mimeType, iconLink, parents)',
+        'q': `${folderQuery} and trashed=false`,
+        'includeItemsFromAllDrives': true,
+        'supportsAllDrives': true
+      });
+      
+      console.log("Files response:", filesResponse);
+      
+      if (!filesResponse || !filesResponse.result) {
+        throw new Error("Invalid API response structure - missing result object");
+      }
+      
+      const items = filesResponse.result.files || [];
+      console.log(`Found ${items.length} items`);
+      
+      // Separate documents, spreadsheets and folders
+      const folders = items.filter(item => item.mimeType === 'application/vnd.google-apps.folder');
+      const docs = items.filter(item => item.mimeType === 'application/vnd.google-apps.document');
+      const sheets = items.filter(item => item.mimeType === 'application/vnd.google-apps.spreadsheet');
+      
+      // Sort alphabetically
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      docs.sort((a, b) => a.name.localeCompare(b.name));
+      sheets.sort((a, b) => a.name.localeCompare(b.name));
+      
+      renderFiles(folders, docs, sheets);
+      
+      // Load shared drives if we're at the root level
+      if (folderId === 'root') {
+        await loadSharedDrives();
+      }
+    } catch (apiError) {
+      console.error("API request failed:", apiError);
+      throw new Error(`API request failed: ${apiError.message || 'Unknown API error'}`);
     }
   } catch (error) {
     console.error('Error loading files', error);
@@ -375,6 +357,7 @@ async function loadDriveFiles(folderId = 'root') {
       <div class="error-message">
         <p>Error loading files.</p>
         <p>Details: ${error.message || 'Unknown error'}</p>
+        <button onclick="loadDriveFiles('${folderId}')">Try Again</button>
       </div>
     `;
   }
