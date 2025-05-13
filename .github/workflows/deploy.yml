@@ -12,6 +12,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # This gets the full history to resolve conflicts
       
       - name: Create env file
         run: |
@@ -19,15 +20,16 @@ jobs:
           echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> .env.js
           echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> .env.js
       
-      - name: Debug
-        run: |
-          ls -la
-          git status
-      
-      - name: Commit changes
+      - name: Configure Git
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
+          git config pull.rebase false  # Choose merge strategy
+      
+      - name: Commit changes
+        run: |
           git add .env.js
           git commit -m "Add environment variables" || echo "No changes to commit"
-          git push || git push --set-upstream origin HEAD 2>&1
+          git pull --no-rebase || echo "No need to pull"
+          git push || echo "Push failed, trying force push"
+          git push --force
