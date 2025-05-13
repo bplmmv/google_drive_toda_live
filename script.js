@@ -1,4 +1,6 @@
 // Load environment variables from env.js
+console.log('Attempting to load environment variables from env.js');
+
 fetch('env.js')
   .then(response => {
     if (!response.ok) {
@@ -7,17 +9,20 @@ fetch('env.js')
     return response.text();
   })
   .then(data => {
+    console.log('Successfully loaded env.js, length:', data.length);
     eval(data); // This sets the variables from the env.js file
     console.log('Environment variables loaded successfully');
     initializeApp();
   })
   .catch(error => {
     console.error('Error loading environment variables:', error);
+    console.error('Current page URL:', window.location.href);
     document.querySelector('#app').innerHTML = `
       <div class="error-container">
         <h2>Configuration Error</h2>
         <p>Could not load environment variables.</p>
         <p>Error details: ${error.message}</p>
+        <p>Please check the browser console for more information.</p>
       </div>
     `;
   });
@@ -39,8 +44,25 @@ let currentFolderId = 'root'; // Start at root folder
 let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
 
 function initializeApp() {
-  // Initialize the Google API client
-  gapi.load('client', initGapiClient);
+  console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
+  
+  // Load the auth2 library first
+  gapi.load('client:auth2', {
+    callback: function() {
+      console.log('GAPI client loaded');
+      initGapiClient();
+    },
+    onerror: function(error) {
+      console.error('Error loading GAPI client:', error);
+      document.querySelector('#app').innerHTML = `
+        <div class="error-container">
+          <h2>Failed to Load Google API</h2>
+          <p>Error: ${error?.message || 'Unknown error'}</p>
+          <p>Please check your internet connection and try again.</p>
+        </div>
+      `;
+    }
+  });
   
   // Initialize Google Identity Services
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -54,6 +76,15 @@ function initializeApp() {
 }
 
 async function initGapiClient() {
+  console.log('Initializing GAPI client');
+  
+  // First, check if the API key is available
+  if (!GOOGLE_API_KEY) {
+    console.error('GOOGLE_API_KEY is missing or undefined');
+    document.querySelector('#app').innerHTML = '<div class="error-container"><h2>Configuration Error</h2><p>API Key is missing.</p></div>';
+    return;
+  }
+  
   try {
     // First initialize with just the Drive API
     await gapi.client.init({
@@ -69,6 +100,14 @@ async function initGapiClient() {
     console.log("GAPI client fully initialized");
   } catch (error) {
     console.error("Error initializing GAPI client:", error);
+    document.querySelector('#app').innerHTML = `
+      <div class="error-container">
+        <h2>API Error</h2>
+        <p>Failed to initialize Google API client.</p>
+        <p>Error details: ${error.message || JSON.stringify(error)}</p>
+        <p>Please check your API key and make sure the Drive API is enabled in your Google Cloud project.</p>
+      </div>
+    `;
   }
 }
 
