@@ -1,0 +1,22 @@
+name: Build and Deploy
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Create env file
+        run: |
+          echo "// Google API credentials" > .env.js
+          echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> .env.js
+          echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> .env.js
+      
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: gh-pages
+          folder: .
