@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # This gets the full history to resolve conflicts
+          fetch-depth: 0
       
       - name: Create env file
         run: |
@@ -26,29 +26,23 @@ jobs:
           ls -la
           echo "Git status:"
           git status
-          echo "Git branch:"
-          git branch
       
       - name: Configure Git
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git config pull.rebase false  # Choose merge strategy
+          git config pull.rebase false
       
-      - name: Commit changes (with verbose output)
+      - name: Commit changes
         run: |
-          git add .env.js
+          # Force add the .env.js file even though it's in .gitignore
+          git add -f .env.js
           git status
           git commit -m "Add environment variables" || echo "No changes to commit"
           echo "Git status after commit:"
           git status
           echo "Attempting to pull:"
           git pull --no-rebase || echo "Pull failed, but continuing"
-          echo "Git status after pull:"
-          git status
           echo "Attempting to push:"
           git push 2>&1 || echo "Standard push failed, will try force push"
-          echo "Attempting force push:"
           git push --force 2>&1
-          echo "Final git status:"
-          git status
