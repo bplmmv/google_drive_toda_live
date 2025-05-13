@@ -76,6 +76,8 @@ function initializeApp() {
   document.getElementById('login-btn').addEventListener('click', handleAuthClick);
 }
 
+// Replace the current initGapiClient function with this version
+
 async function initGapiClient() {
   console.log('Initializing GAPI client');
   
@@ -88,23 +90,23 @@ async function initGapiClient() {
   
   try {
     console.log("Attempting to initialize Google API client...");
+    
+    // Initialize with API key only, without discovery docs
+    await gapi.client.setApiKey(GOOGLE_API_KEY);
+    
+    console.log("API key set successfully, manually loading Drive API");
+    
+    // Manually load the Drive API without using discovery docs
     await new Promise((resolve, reject) => {
-      const initTimeout = setTimeout(() => {
-        reject(new Error('Initialization timed out after 10 seconds'));
-      }, 10000);
-      
-      // Try direct discovery URL with key included
-      gapi.client.init({
-        apiKey: GOOGLE_API_KEY,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest?key=' + GOOGLE_API_KEY]
-      }).then(() => {
-        clearTimeout(initTimeout);
-        console.log("Google API client initialized successfully");
-        resolve();
-      }).catch(err => {
-        clearTimeout(initTimeout);
-        reject(err);
-      });
+      gapi.client.load('drive', 'v3')
+        .then(() => {
+          console.log("Drive API loaded manually");
+          resolve();
+        })
+        .catch(err => {
+          console.error("Error loading Drive API manually:", err);
+          reject(err);
+        });
     });
     
     // Then load the Sheets API separately
