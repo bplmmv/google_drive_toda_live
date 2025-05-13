@@ -1,1 +1,4 @@
+# Local environment files
+.env
 .env.js
+env.js
