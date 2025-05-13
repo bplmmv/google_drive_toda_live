@@ -1,18 +1,15 @@
-name: Add Environment Variables
+name: Build and Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
       
       - name: Create env file
         run: |
@@ -20,29 +17,9 @@ jobs:
           echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> .env.js
           echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> .env.js
       
-      - name: Debug Info
-        run: |
-          echo "Current directory contents:"
-          ls -la
-          echo "Git status:"
-          git status
-      
-      - name: Configure Git
-        run: |
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'actions@github.com'
-          git config pull.rebase false
-      
-      - name: Commit changes
-        run: |
-          # Force add the .env.js file even though it's in .gitignore
-          git add -f .env.js
-          git status
-          git commit -m "Add environment variables" || echo "No changes to commit"
-          echo "Git status after commit:"
-          git status
-          echo "Attempting to pull:"
-          git pull --no-rebase || echo "Pull failed, but continuing"
-          echo "Attempting to push:"
-          git push 2>&1 || echo "Standard push failed, will try force push"
-          git push --force 2>&1
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: .  # The folder to deploy
+          branch: gh-pages  # The branch to deploy to
+          clean: true  # Automatically remove deleted files from the deploy branch
