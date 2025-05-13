@@ -78,10 +78,11 @@ function initializeApp() {
 
 // Replace the current initGapiClient function with this version
 
+// Update the initGapiClient function to work better with restrictions
+
 async function initGapiClient() {
   console.log('Initializing GAPI client');
   
-  // First, check if the API key is available
   if (!GOOGLE_API_KEY) {
     console.error('GOOGLE_API_KEY is missing or undefined');
     document.querySelector('#app').innerHTML = '<div class="error-container"><h2>Configuration Error</h2><p>API Key is missing.</p></div>';
@@ -91,28 +92,26 @@ async function initGapiClient() {
   try {
     console.log("Attempting to initialize Google API client...");
     
-    // Initialize with API key only, without discovery docs
-    await gapi.client.setApiKey(GOOGLE_API_KEY);
+    // Set the API key first
+    gapi.client.setApiKey(GOOGLE_API_KEY);
+    console.log("API key set successfully");
     
-    console.log("API key set successfully, manually loading Drive API");
-    
-    // Manually load the Drive API without using discovery docs
+    // Load Drive API and then Sheets API
+    console.log("Loading Drive API...");
     await new Promise((resolve, reject) => {
-      gapi.client.load('drive', 'v3')
-        .then(() => {
-          console.log("Drive API loaded manually");
-          resolve();
-        })
-        .catch(err => {
-          console.error("Error loading Drive API manually:", err);
-          reject(err);
-        });
+      gapi.client.load('drive', 'v3', () => {
+        console.log("Drive API loaded successfully");
+        resolve();
+      });
     });
     
-    // Then load the Sheets API separately
+    // Then load the Sheets API
     await loadSheetsAPI();
     
     console.log("GAPI client fully initialized");
+    initializeAppFunctionality().catch(error => {
+      console.error("Failed to initialize app functionality:", error);
+    });
   } catch (error) {
     console.error("Error initializing GAPI client:", error);
     document.querySelector('#app').innerHTML = `
@@ -125,11 +124,11 @@ async function initGapiClient() {
           <li>Your API key is correct and has proper permissions</li>
           <li>The Drive API is enabled in your Google Cloud project</li>
           <li>Your API key restrictions are properly configured</li>
+          <li>Try to use the website: ${window.location.origin}${window.location.pathname}</li>
         </ul>
         <button onclick="location.reload()">Try Again</button>
       </div>
     `;
-    throw error; // Rethrow so calling code knows initialization failed
   }
 }
 
@@ -301,6 +300,8 @@ function renderBreadcrumbs() {
   });
 }
 
+// Update the loadDriveFiles function to include shared drives
+
 async function loadDriveFiles(folderId = 'root') {
   try {
     // Display loading state
@@ -314,7 +315,6 @@ async function loadDriveFiles(folderId = 'root') {
     
     console.log(`Fetching files with query: ${folderQuery}`);
     
-    // Add some additional error handling for the API request
     try {
       const filesResponse = await gapi.client.drive.files.list({
         'pageSize': 100,
@@ -365,21 +365,30 @@ async function loadDriveFiles(folderId = 'root') {
   }
 }
 
+// Update the loadSharedDrives function for better error handling
+
 async function loadSharedDrives() {
+  console.log("Attempting to load shared drives...");
   try {
     const sharedDrivesResponse = await gapi.client.drive.drives.list({
       'pageSize': 50,
       'fields': 'drives(id, name)'
     });
     
+    console.log("Shared drives response:", sharedDrivesResponse);
+    
     const sharedDrives = sharedDrivesResponse.result.drives || [];
+    console.log(`Found ${sharedDrives.length} shared drives`);
     
     // Render shared drives if any
     if (sharedDrives.length > 0) {
       renderSharedDrives(sharedDrives);
+    } else {
+      console.log("No shared drives found or user doesn't have access to any");
     }
   } catch (error) {
-    console.error('Error loading shared drives', error);
+    console.error('Error loading shared drives:', error);
+    // Don't show an error to the user as shared drives are optional
   }
 }
 
