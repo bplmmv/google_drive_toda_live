@@ -11,25 +11,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       
-      - name: Create build directory
-        run: mkdir -p build
-      
-      - name: Copy files to build directory
+      - name: Create env file
         run: |
-          cp -r * build/ || true
-          cp .nojekyll build/ 2>/dev/null || touch build/.nojekyll
-      
-      - name: Create env file in build directory
-        run: |
-          echo "// Google API credentials" > build/env.js
-          echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> build/env.js
-          echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> build/env.js
-          ls -la build/
+          echo "// Google API credentials" > env.js
+          echo "GOOGLE_API_KEY = '${{ secrets.GOOGLE_API_KEY }}';" >> env.js
+          echo "GOOGLE_CLIENT_ID = '${{ secrets.GOOGLE_CLIENT_ID }}';" >> env.js
       
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: build  # Deploy the build folder
+          folder: .  # Deploy the entire repository
           branch: gh-pages
           clean: true
           token: ${{ secrets.GITHUB_TOKEN }}
