@@ -1,20 +1,23 @@
-// Load environment variables from .env.js
-let GOOGLE_API_KEY;
-let GOOGLE_CLIENT_ID;
-
-// First, load the environment variables
-fetch('.env.js')
-  .then(response => response.text())
+// Load environment variables from env.js
+fetch('env.js')
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Failed to load environment file: ${response.status}`);
+    }
+    return response.text();
+  })
   .then(data => {
-    eval(data); // This sets the variables from the .env.js file
+    eval(data); // This sets the variables from the env.js file
+    console.log('Environment variables loaded successfully');
     initializeApp();
   })
   .catch(error => {
     console.error('Error loading environment variables:', error);
     document.querySelector('#app').innerHTML = `
-      <div class="login-container">
+      <div class="error-container">
         <h2>Configuration Error</h2>
-        <p>Could not load environment variables. Please check your .env.js file.</p>
+        <p>Could not load environment variables.</p>
+        <p>Error details: ${error.message}</p>
       </div>
     `;
   });
