@@ -75,6 +75,8 @@ function initializeApp() {
   document.getElementById('login-btn').addEventListener('click', handleAuthClick);
 }
 
+// Update the initGapiClient function with more robust error handling
+
 async function initGapiClient() {
   console.log('Initializing GAPI client');
   
@@ -86,15 +88,26 @@ async function initGapiClient() {
   }
   
   try {
-    // First initialize with just the Drive API
-    await gapi.client.init({
-      apiKey: GOOGLE_API_KEY,
-      discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+    console.log("Attempting to initialize Google API client...");
+    await new Promise((resolve, reject) => {
+      const initTimeout = setTimeout(() => {
+        reject(new Error('Initialization timed out after 10 seconds'));
+      }, 10000);
+      
+      gapi.client.init({
+        apiKey: GOOGLE_API_KEY,
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+      }).then(() => {
+        clearTimeout(initTimeout);
+        console.log("Google API client initialized successfully");
+        resolve();
+      }).catch(err => {
+        clearTimeout(initTimeout);
+        reject(err);
+      });
     });
     
-    console.log("Drive API initialized successfully");
-    
-    // Then load the Sheets API separately to ensure proper loading
+    // Then load the Sheets API separately
     await loadSheetsAPI();
     
     console.log("GAPI client fully initialized");
@@ -105,34 +118,92 @@ async function initGapiClient() {
         <h2>API Error</h2>
         <p>Failed to initialize Google API client.</p>
         <p>Error details: ${error.message || JSON.stringify(error)}</p>
-        <p>Please check your API key and make sure the Drive API is enabled in your Google Cloud project.</p>
+        <p>Please check:</p>
+        <ul>
+          <li>Your API key is correct and has proper permissions</li>
+          <li>The Drive API is enabled in your Google Cloud project</li>
+          <li>Your API key restrictions are properly configured</li>
+        </ul>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+    `;
+    throw error; // Rethrow so calling code knows initialization failed
+  }
+}
+
+// Update the loadDriveFiles function to handle missing results better
+async function loadDriveFiles(folderId = 'root') {
+  try {
+    // Display loading state
+    document.getElementById('file-list').innerHTML = '<div class="loading">Loading files...</div>';
+    
+    // Update the breadcrumb navigation
+    renderBreadcrumbs();
+    
+    // Query for files and folders in the current folder
+    const folderQuery = folderId === 'root' ? "'root' in parents" : `'${folderId}' in parents`;
+    
+    console.log(`Fetching files with query: ${folderQuery}`);
+    
+    // Add some additional error handling for the API request
+    try {
+      const filesResponse = await gapi.client.drive.files.list({
+        'pageSize': 100,
+        'fields': 'files(id, name, mimeType, iconLink, parents)',
+        'q': `${folderQuery} and trashed=false`,
+        'includeItemsFromAllDrives': true,
+        'supportsAllDrives': true
+      });
+      
+      console.log("Files response:", filesResponse);
+      
+      if (!filesResponse || !filesResponse.result) {
+        throw new Error("Invalid API response structure - missing result object");
+      }
+      
+      const items = filesResponse.result.files || [];
+      console.log(`Found ${items.length} items`);
+      
+      // Separate documents, spreadsheets and folders
+      const folders = items.filter(item => item.mimeType === 'application/vnd.google-apps.folder');
+      const docs = items.filter(item => item.mimeType === 'application/vnd.google-apps.document');
+      const sheets = items.filter(item => item.mimeType === 'application/vnd.google-apps.spreadsheet');
+      
+      // Sort alphabetically
+      folders.sort((a, b) => a.name.localeCompare(b.name));
+      docs.sort((a, b) => a.name.localeCompare(b.name));
+      sheets.sort((a, b) => a.name.localeCompare(b.name));
+      
+      renderFiles(folders, docs, sheets);
+      
+      // Load shared drives if we're at the root level
+      if (folderId === 'root') {
+        await loadSharedDrives();
+      }
+    } catch (apiError) {
+      console.error("API request failed:", apiError);
+      throw new Error(`API request failed: ${apiError.message || 'Unknown API error'}`);
+    }
+  } catch (error) {
+    console.error('Error loading files', error);
+    document.getElementById('file-list').innerHTML = `
+      <div class="error-message">
+        <p>Error loading files.</p>
+        <p>Details: ${error.message || 'Unknown error'}</p>
+        <button onclick="loadDriveFiles('${folderId}')">Try Again</button>
       </div>
     `;
   }
 }
 
-async function loadSheetsAPI() {
-  try {
-    await gapi.client.load('sheets', 'v4');
-    console.log("Sheets API loaded successfully");
-    console.log("Available APIs:", Object.keys(gapi.client));
-  } catch (error) {
-    console.error("Error loading Sheets API:", error);
-  }
-}
-
-function handleAuthClick() {
-  if (!isAuthenticated) {
-    tokenClient.requestAccessToken();
-  }
-}
-
+// Update handleAuthResponse to handle initialization errors
 function handleAuthResponse(response) {
   if (response.error !== undefined) {
     console.error('Auth error:', response);
     return;
   }
   
+  console.log("User successfully authenticated");
   isAuthenticated = true;
   
   // Replace login content with the app template
@@ -140,42 +211,73 @@ function handleAuthResponse(response) {
   document.getElementById('app').innerHTML = appTemplate.innerHTML;
   
   // Initialize app functionality after successful authentication
-  initializeAppFunctionality();
+  try {
+    initializeAppFunctionality().catch(error => {
+      console.error("Failed to initialize app functionality:", error);
+      document.getElementById('app').innerHTML = `
+        <div class="error-container">
+          <h2>Initialization Error</h2>
+          <p>Could not initialize the application.</p>
+          <p>Error: ${error.message}</p>
+          <button onclick="location.reload()">Try Again</button>
+        </div>
+      `;
+    });
+  } catch (error) {
+    console.error("Exception during app initialization:", error);
+    document.getElementById('app').innerHTML = `
+      <div class="error-container">
+        <h2>Initialization Error</h2>
+        <p>Could not initialize the application.</p>
+        <p>Error: ${error.message}</p>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+    `;
+  }
 }
 
+// Make initializeAppFunctionality return a promise so we can catch errors
 function initializeAppFunctionality() {
-  // Add event listeners
-  document.getElementById('save-btn').addEventListener('click', saveFile);
-  document.getElementById('close-btn').addEventListener('click', closeDocument);
-  document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
-  
-  // Set up drop zone behavior for the editor
-  const editorDropzone = document.getElementById('editor-dropzone');
-  
-  editorDropzone.addEventListener('dragover', e => {
-    e.preventDefault();
-    editorDropzone.classList.add('active');
-  });
-  
-  editorDropzone.addEventListener('dragleave', () => {
-    editorDropzone.classList.remove('active');
-  });
-  
-  editorDropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    editorDropzone.classList.remove('active');
-    
-    const fileId = e.dataTransfer.getData('fileId');
-    if (fileId) {
-      openFile(fileId);
+  return new Promise((resolve, reject) => {
+    try {
+      // Add event listeners
+      document.getElementById('save-btn').addEventListener('click', saveFile);
+      document.getElementById('close-btn').addEventListener('click', closeDocument);
+      document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
+      
+      // Set up drop zone behavior for the editor
+      const editorDropzone = document.getElementById('editor-dropzone');
+      
+      editorDropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        editorDropzone.classList.add('active');
+      });
+      
+      editorDropzone.addEventListener('dragleave', () => {
+        editorDropzone.classList.remove('active');
+      });
+      
+      editorDropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        editorDropzone.classList.remove('active');
+        
+        const fileId = e.dataTransfer.getData('fileId');
+        if (fileId) {
+          openFile(fileId);
+        }
+      });
+      
+      // Set up breadcrumb container event handlers
+      document.getElementById('breadcrumb-container').addEventListener('click', handleBreadcrumbClick);
+      
+      // Load files from Google Drive
+      loadDriveFiles(currentFolderId)
+        .then(resolve)
+        .catch(reject);
+    } catch (error) {
+      reject(error);
     }
   });
-  
-  // Set up breadcrumb container event handlers
-  document.getElementById('breadcrumb-container').addEventListener('click', handleBreadcrumbClick);
-  
-  // Load files from Google Drive
-  loadDriveFiles(currentFolderId);
 }
 
 function handleBreadcrumbClick(event) {
