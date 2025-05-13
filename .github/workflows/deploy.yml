@@ -26,6 +26,7 @@ jobs:
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git add env.js .nojekyll
+          # Force add files even if they're in .gitignore
+          git add -f env.js .nojekyll
           git commit -m "Add environment variables" || echo "No changes to commit"
           git push origin HEAD:main
