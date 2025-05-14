@@ -36,65 +36,17 @@ const API_SCOPE = 'https://www.googleapis.com/auth/drive.file ' +
                  'https://www.googleapis.com/auth/spreadsheets ' +
                  'https://www.googleapis.com/auth/spreadsheets.readonly';
                  
-// Add this after the API_SCOPE declaration
-
 // Add token persistence
 const TOKEN_STORAGE_KEY = 'toda_google_auth_token';
+                 
+// Global variables
+let currentFile = null;
+let editorContent = '';
+let isAuthenticated = false;
+let tokenClient;
+let currentFolderId = 'root'; // Start at root folder
+let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
 
-// Update the handleAuthResponse function to store the token
-function handleAuthResponse(response) {
-  if (response.error !== undefined) {
-    console.error('Auth error:', response);
-    return;
-  }
-  
-  console.log("User successfully authenticated");
-  isAuthenticated = true;
-  
-  // Store the token in localStorage
-  try {
-    const token = gapi.auth.getToken();
-    if (token) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
-        token: token,
-        expiresAt: Date.now() + (token.expires_in * 1000)
-      }));
-    }
-  } catch (e) {
-    console.error('Error saving token to localStorage:', e);
-  }
-  
-  // Replace login content with the app template
-  const appTemplate = document.getElementById('app-template');
-  document.getElementById('app').innerHTML = appTemplate.innerHTML;
-  
-  // Initialize app functionality after successful authentication
-  try {
-    initializeAppFunctionality().catch(error => {
-      console.error("Failed to initialize app functionality:", error);
-      document.getElementById('app').innerHTML = `
-        <div class="error-container">
-          <h2>Initialization Error</h2>
-          <p>Could not initialize the application.</p>
-          <p>Error: ${error.message}</p>
-          <button onclick="location.reload()">Try Again</button>
-        </div>
-      `;
-    });
-  } catch (error) {
-    console.error("Exception during app initialization:", error);
-    document.getElementById('app').innerHTML = `
-      <div class="error-container">
-        <h2>Initialization Error</h2>
-        <p>Could not initialize the application.</p>
-        <p>Error: ${error.message}</p>
-        <button onclick="location.reload()">Try Again</button>
-      </div>
-    `;
-  }
-}
-
-// Add this to the initializeApp function, at the beginning
 function initializeApp() {
   console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
   
@@ -157,60 +109,9 @@ function initializeApp() {
     });
     
     // Add event listener for login button
-    document.getElementById('login-btn').addEventListener('click', handleAuthClick);
+    document.getElementById('login-btn')?.addEventListener('click', handleAuthClick);
   }
 }
-
-// Add a logout function
-function logout() {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
-  isAuthenticated = false;
-  location.reload();
-}
-                 
-// Global variables
-let currentFile = null;
-let editorContent = '';
-let isAuthenticated = false;
-let tokenClient;
-let currentFolderId = 'root'; // Start at root folder
-let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
-
-function initializeApp() {
-  console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
-  
-  // Load the auth2 library first
-  gapi.load('client:auth2', {
-    callback: function() {
-      console.log('GAPI client loaded');
-      initGapiClient();
-    },
-    onerror: function(error) {
-      console.error('Error loading GAPI client:', error);
-      document.querySelector('#app').innerHTML = `
-        <div class="error-container">
-          <h2>Failed to Load Google API</h2>
-          <p>Error: ${error?.message || 'Unknown error'}</p>
-          <p>Please check your internet connection and try again.</p>
-        </div>
-      `;
-    }
-  });
-  
-  // Initialize Google Identity Services
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: API_SCOPE,
-    callback: handleAuthResponse,
-  });
-  
-  // Add event listener for login button
-  document.getElementById('login-btn').addEventListener('click', handleAuthClick);
-}
-
-// Replace the current initGapiClient function with this version
-
-// Update the initGapiClient function to work better with restrictions
 
 async function initGapiClient() {
   console.log('Initializing GAPI client');
@@ -241,9 +142,14 @@ async function initGapiClient() {
     await loadSheetsAPI();
     
     console.log("GAPI client fully initialized");
-    initializeAppFunctionality().catch(error => {
-      console.error("Failed to initialize app functionality:", error);
-    });
+    
+    // Only initialize app functionality if we weren't already authenticated
+    // (If we were already authenticated, it's handled in initializeApp)
+    if (isAuthenticated && !document.getElementById('file-list')) {
+      initializeAppFunctionality().catch(error => {
+        console.error("Failed to initialize app functionality:", error);
+      });
+    }
   } catch (error) {
     console.error("Error initializing GAPI client:", error);
     document.querySelector('#app').innerHTML = `
@@ -307,6 +213,22 @@ function handleAuthResponse(response) {
   console.log("User successfully authenticated");
   isAuthenticated = true;
   
+  // Store the token in localStorage
+  try {
+    const token = gapi.auth.getToken();
+    if (token) {
+      console.log("Saving token to localStorage");
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+        token: token,
+        expiresAt: Date.now() + (3600 * 1000) // Tokens usually expire after 1 hour
+      }));
+    } else {
+      console.warn("No token available to save");
+    }
+  } catch (e) {
+    console.error('Error saving token to localStorage:', e);
+  }
+  
   // Replace login content with the app template
   const appTemplate = document.getElementById('app-template');
   document.getElementById('app').innerHTML = appTemplate.innerHTML;
@@ -335,6 +257,13 @@ function handleAuthResponse(response) {
       </div>
     `;
   }
+}
+
+// Add a logout function
+function logout() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  isAuthenticated = false;
+  location.reload();
 }
 
 function initializeAppFunctionality() {
@@ -432,8 +361,6 @@ function renderBreadcrumbs() {
   });
 }
 
-// Update the loadDriveFiles function to include shared drives
-
 async function loadDriveFiles(folderId = 'root') {
   try {
     // Display loading state
@@ -496,8 +423,6 @@ async function loadDriveFiles(folderId = 'root') {
     `;
   }
 }
-
-// Update the loadSharedDrives function for better error handling
 
 async function loadSharedDrives() {
   console.log("Attempting to load shared drives...");
@@ -798,10 +723,6 @@ async function openFile(fileId, mimeType) {
     alert('Error opening file: ' + error.message);
   }
 }
-
-// Update the openDocument function to remove the blue vertical bar
-
-// Update the openDocument function to fix the width issues
 
 async function openDocument(fileId, editorContainer) {
   // Get the file content as HTML
