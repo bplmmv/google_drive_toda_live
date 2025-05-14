@@ -7,32 +7,45 @@ function showAppLoading() {
   if (appElement) {
     appElement.innerHTML = `
       <div class="loading-container">
-        <h2>Loading Google Drive Editor...</h2>
-        <div class="loading-spinner"></div>
-        <p>Please wait while we restore your session</p>
+        <div class="loading-content">
+          <h2>Loading Google Drive Editor...</h2>
+          <div class="loading-spinner"></div>
+          <p>Please wait while we restore your session</p>
+        </div>
       </div>
     `;
     
-    // Add spinner styling
+    // Add spinner styling with better centering
     const style = document.createElement('style');
     style.textContent = `
       .loading-container {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100%;
+        height: 100vh;
+        width: 100%;
         color: #fff;
+        padding: 0;
+        margin: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      .loading-content {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         padding: 2rem;
       }
       .loading-spinner {
-        width: 50px;
-        height: 50px;
+        width: 60px;
+        height: 60px;
         border: 5px solid rgba(255, 255, 255, 0.3);
         border-radius: 50%;
         border-top-color: #fff;
         animation: spin 1s ease-in-out infinite;
-        margin: 20px 0;
+        margin: 30px 0;
       }
       @keyframes spin {
         to { transform: rotate(360deg); }
@@ -94,9 +107,18 @@ let isAuthenticated = false;
 let tokenClient;
 let currentFolderId = 'root'; // Start at root folder
 let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
+let isLoggingOut = false; // Add flag to prevent logout loop
 
 function initializeApp() {
   console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
+  
+  // Check if we're in the process of logging out
+  if (isLoggingOut) {
+    console.log("Logout in progress, redirecting to login page");
+    showLoginPage();
+    isLoggingOut = false; // Reset the flag
+    return;
+  }
   
   // We'll restore the token later, after gapi is fully loaded
   let storedToken = null;
@@ -188,19 +210,24 @@ function initializeApp() {
           callback: handleAuthResponse,
         });
         
-        // Now we know we need to show the login screen
-        const appTemplate = document.getElementById('login-template');
-        if (appTemplate) {
-          document.getElementById('app').innerHTML = appTemplate.innerHTML;
-          
-          // Add event listener for login button
-          const loginBtn = document.getElementById('login-btn');
-          if (loginBtn) {
-            loginBtn.addEventListener('click', handleAuthClick);
-          }
-        }
+        showLoginPage();
       }
     }, 100);
+  }
+}
+
+// Helper function to show login page
+function showLoginPage() {
+  // Now we know we need to show the login screen
+  const appTemplate = document.getElementById('login-template');
+  if (appTemplate) {
+    document.getElementById('app').innerHTML = appTemplate.innerHTML;
+    
+    // Add event listener for login button
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', handleAuthClick);
+    }
   }
 }
 
@@ -368,11 +395,40 @@ window.addEventListener('load', () => {
   setTimeout(checkStoredToken, 1000);
 });
 
-// Add a logout function
+// Updated logout function to break the loop
 function logout() {
+  // Set the logout flag to true
+  isLoggingOut = true;
+  
+  // Clear auth token
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   isAuthenticated = false;
-  location.reload();
+  
+  // Clear GAPI token if available
+  try {
+    if (gapi && gapi.auth) {
+      gapi.auth.setToken(null);
+    }
+  } catch (e) {
+    console.error('Error clearing GAPI token:', e);
+  }
+  
+  // Redirect to login page
+  const appElement = document.getElementById('app');
+  if (appElement) {
+    appElement.innerHTML = `
+      <div class="logout-message">
+        <h2>Logging out...</h2>
+        <p>You will be redirected to the login page.</p>
+      </div>
+    `;
+  }
+  
+  // Use timeout to ensure UI updates before reload
+  setTimeout(() => {
+    // Use window.location.href to force a clean reload
+    window.location.href = window.location.origin + window.location.pathname;
+  }, 500);
 }
 
 function initializeAppFunctionality() {
@@ -383,7 +439,7 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
-      // Add logout button to the header in a more robust way
+      // Add logout button to the header with improved placement
       const appHeader = document.querySelector('.app-header');
       if (appHeader) {
         // First check if button already exists to avoid duplicates
@@ -395,24 +451,25 @@ function initializeAppFunctionality() {
           headerRight.style.display = 'flex';
           headerRight.style.alignItems = 'center';
           
-          // Create logout button with more visible styling
+          // Create logout button with more visible styling and better positioning
           const logoutBtn = document.createElement('button');
           logoutBtn.id = 'logout-btn';
           logoutBtn.className = 'header-btn logout-btn';
           logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
           logoutBtn.addEventListener('click', logout);
           
-          // Style the button more prominently
+          // Style the button more prominently and move it further from refresh
           logoutBtn.style.backgroundColor = '#f44336';
           logoutBtn.style.color = 'white';
           logoutBtn.style.border = 'none';
           logoutBtn.style.borderRadius = '4px';
-          logoutBtn.style.padding = '8px 12px';
+          logoutBtn.style.padding = '8px 16px';
           logoutBtn.style.cursor = 'pointer';
           logoutBtn.style.display = 'flex';
           logoutBtn.style.alignItems = 'center';
           logoutBtn.style.gap = '6px';
           logoutBtn.style.fontWeight = 'bold';
+          logoutBtn.style.marginLeft = '20px'; // More space from other buttons
           
           // Add hover effect
           logoutBtn.onmouseover = () => { logoutBtn.style.backgroundColor = '#d32f2f'; };
