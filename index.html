@@ -13,36 +13,59 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            display: flex;
             height: 100vh;
             background-color: #1e1e2e;
             color: #e4e6eb;
+            overflow: hidden;
         }
         
-        .container {
+        /* Basic layout */
+        #app {
             display: flex;
+            flex-direction: column;
             width: 100%;
-            height: 100%;
+            height: 100vh;
         }
         
+        /* Header */
+        .app-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #1a1a2e;
+            border-bottom: 1px solid #333;
+            height: 40px;
+        }
+        
+        /* Main content container */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Left side - editor area */
         .editor-pane {
             flex: 7;
-            border-right: 1px solid #333;
             display: flex;
             flex-direction: column;
             height: 100%;
             background-color: #16161f;
+            overflow: hidden;
         }
         
+        /* Right side - file browser */
         .file-list-pane {
             flex: 3;
             padding: 20px;
             overflow-y: auto;
             background-color: #242436;
+            border-left: 1px solid #333;
             height: 100%;
             box-sizing: border-box;
         }
         
+        /* File list header styling */
         .file-list-header {
             display: flex;
             justify-content: space-between;
@@ -51,6 +74,7 @@
             color: #ffffff;
         }
         
+        /* Editor toolbar */
         .toolbar {
             padding: 10px;
             background-color: #1a1a2e;
@@ -60,6 +84,7 @@
             color: #e4e6eb;
         }
         
+        /* Editor content area */
         .editor-content {
             flex: 1;
             padding: 20px;
@@ -67,6 +92,7 @@
             background-color: #16161f;
         }
         
+        /* Editor styling */
         #editor {
             width: 100%;
             height: 100%;
@@ -78,6 +104,7 @@
             color: #e4e6eb;
         }
         
+        /* File items in the list */
         .file-item {
             padding: 10px;
             margin-bottom: 5px;
@@ -107,6 +134,7 @@
             border-left: 3px solid #61dafb;
         }
         
+        /* Button styles */
         .save-btn {
             background-color: #61dafb;
             color: #1a1a2e;
@@ -148,6 +176,7 @@
             background-color: #4fa8d2;
         }
         
+        /* Drop zone styling */
         .dropzone {
             border: 2px dashed #444;
             padding: 20px;
@@ -155,6 +184,10 @@
             margin-bottom: 20px;
             border-radius: 8px;
             color: #aaa;
+            height: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .dropzone.active {
@@ -162,6 +195,7 @@
             background-color: #1d3a53;
         }
         
+        /* Toolbar buttons */
         .toolbar-buttons {
             display: flex;
             gap: 10px;
@@ -185,6 +219,7 @@
             opacity: 0.5;
         }
         
+        /* Drive sections styling */
         .drive-section {
             margin-bottom: 20px;
             border-radius: 8px;
@@ -209,23 +244,26 @@
             font-style: italic;
             margin-left: 10px;
         }
-
+        
+        /* Responsive layout */
         @media (max-width: 768px) {
-            .container {
+            .main-container {
                 flex-direction: column;
             }
             
             .editor-pane {
                 flex: 1;
-                border-right: none;
                 border-bottom: 1px solid #333;
+                border-right: none;
             }
             
             .file-list-pane {
                 flex: 1;
+                border-left: none;
             }
         }
         
+        /* File type specific styling */
         .section-subheader {
           margin-top: 10px;
           margin-bottom: 5px;
@@ -246,6 +284,7 @@
           color: #a9dc76;
         }
         
+        /* Loading and error states */
         .loading {
           display: flex;
           align-items: center;
@@ -261,6 +300,7 @@
           text-align: center;
         }
         
+        /* Refresh button */
         .refresh-btn {
           background: none;
           border: none;
@@ -280,6 +320,7 @@
           cursor: not-allowed;
         }
         
+        /* Breadcrumb navigation */
         .breadcrumb-container {
           display: flex;
           align-items: center;
@@ -317,13 +358,13 @@
           color: #a9dc76;
         }
         
-        /* Style for the iframe content */
+        /* Embedded iframe styling */
         iframe {
           background-color: white;
           border-radius: 4px;
         }
         
-        /* Styles for spreadsheet editor */
+        /* Spreadsheet editor specific styles */
         #sheets-editor {
           display: flex;
           flex-direction: column;
@@ -381,14 +422,25 @@
           outline: 2px solid #4285f4;
           outline-offset: -2px;
         }
-
-        /* New styles for the header-right container and logout button */
+        
+        /* Header actions styling */
+        .header-left {
+          display: flex;
+          align-items: center;
+        }
+        
         .header-right {
           margin-left: auto;
           display: flex;
           align-items: center;
         }
         
+        /* Important - Ensure good spacing between refresh and logout */
+        .header-right .refresh-btn {
+          margin-right: 80px; /* Very large gap between refresh and logout */
+        }
+        
+        /* Logout button styling */
         .logout-btn {
           background-color: #f44336;
           color: white;
@@ -400,23 +452,13 @@
           align-items: center;
           gap: 6px;
           font-weight: bold;
-          margin-left: 30px; /* Increased spacing from refresh button */
         }
         
         .logout-btn:hover {
           background-color: #d32f2f;
         }
         
-        .app-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px;
-          background-color: #1a1a2e;
-          border-bottom: 1px solid #333;
-        }
-
-        /* Styling for the loading screen */
+        /* Loading screen styles */
         .loading-container {
           display: flex;
           align-items: center;
@@ -466,103 +508,10 @@
           color: #fff;
           background-color: #1e1e2e;
         }
-        /* Header layout styling */
-.app-header {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-    background-color: #1a1a2e;
-    border-bottom: 1px solid #333;
-    position: relative;
-    width: 100%;
-}
-
-.header-actions {
-    margin-left: auto;
-    margin-right: 20px; /* Space between refresh and logout */
-    display: flex;
-    align-items: center;
-}
-
-.logout-btn-container {
-    display: flex;
-    margin-left: auto;
-}
-
-.logout-btn {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: bold;
-}
-
-.logout-btn:hover {
-    background-color: #d32f2f;
-}
-
-/* Container needs to be full-width */
-.container {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-}
-
-/* Adjust the main content area to account for the header */
-.editor-pane, .file-list-pane {
-    height: calc(100% - 50px);
-}
-/* Header right styling for buttons */
-.header-right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-}
-
-.header-right .refresh-btn {
-    margin-right: 40px; /* Add significant space between refresh and logout */
-}
-
-.header-right .logout-btn {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: bold;
-}
-
-/* Make sure app-header is outside the container flex layout */
-.app-header {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    background-color: #1a1a2e;
-    border-bottom: 1px solid #333;
-    width: 100%;
-}
-
-/* Restore container to row layout */
-.container {
-    display: flex; 
-    flex-direction: row;
-    width: 100%;
-    height: calc(100vh - 50px); /* Subtract header height */
-}
     </style>
 </head>
 <body>
-    <div class="container" id="app">
+    <div id="app">
         <!-- This content will be replaced once authenticated -->
         <div class="login-container">
             <h2>Google Drive Docs-Sheets Editor - TODA Live</h2>
@@ -571,50 +520,52 @@
         </div>
     </div>
     
-<!-- Template for the main app after authentication -->
-<template id="app-template">
-    <div class="app-header">
-        <h3>Google Drive Editor</h3>
-        <div class="header-right">
-            <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-            <button id="logout-btn" class="logout-btn">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </button>
-        </div>
-    </div>
-    <div class="container">
-        <div class="editor-pane">
-            <div class="toolbar">
-                <div id="current-file-name">No file selected</div>
-                <div class="toolbar-buttons">
-                    <button id="close-btn" class="toolbar-btn" disabled><i class="fas fa-times"></i> Close</button>
-                    <button id="save-btn" class="save-btn" disabled>Save</button>
-                </div>
+    <!-- Template for the main app after authentication -->
+    <template id="app-template">
+        <div class="app-header">
+            <div class="header-left">
+                <h3>Google Drive Editor</h3>
             </div>
-            <div class="editor-content">
-                <div class="dropzone" id="editor-dropzone">
-                    Drop a file here to edit
-                </div>
-                <div id="editor-container" style="display: none;">
-                    <!-- Google Docs/Sheets editor will be embedded here -->
-                </div>
+            <div class="header-right">
+                <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
             </div>
         </div>
-        <div class="file-list-pane">
-            <div class="file-list-header">
-                <h3>Your Google Drive Files</h3>
+        <div class="main-container">
+            <div class="editor-pane">
+                <div class="toolbar">
+                    <div id="current-file-name">No file selected</div>
+                    <div class="toolbar-buttons">
+                        <button id="close-btn" class="toolbar-btn" disabled><i class="fas fa-times"></i> Close</button>
+                        <button id="save-btn" class="save-btn" disabled>Save</button>
+                    </div>
+                </div>
+                <div class="editor-content">
+                    <div class="dropzone" id="editor-dropzone">
+                        Drop a file here to edit
+                    </div>
+                    <div id="editor-container" style="display: none;">
+                        <!-- Google Docs/Sheets editor will be embedded here -->
+                    </div>
+                </div>
             </div>
-            <div id="breadcrumb-container" class="breadcrumb-container">
-                <!-- Breadcrumbs will be added here -->
-            </div>
-            <div id="file-list">
-                Loading files...
+            <div class="file-list-pane">
+                <div class="file-list-header">
+                    <h3>Your Google Drive Files</h3>
+                </div>
+                <div id="breadcrumb-container" class="breadcrumb-container">
+                    <!-- Breadcrumbs will be added here -->
+                </div>
+                <div id="file-list">
+                    Loading files...
+                </div>
             </div>
         </div>
-    </div>
-</template>
+    </template>
     
     <!-- Template for the login screen -->
     <template id="login-template">
