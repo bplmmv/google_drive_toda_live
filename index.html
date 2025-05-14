@@ -518,6 +518,47 @@
 .editor-pane, .file-list-pane {
     height: calc(100% - 50px);
 }
+/* Header right styling for buttons */
+.header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
+.header-right .refresh-btn {
+    margin-right: 40px; /* Add significant space between refresh and logout */
+}
+
+.header-right .logout-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: bold;
+}
+
+/* Make sure app-header is outside the container flex layout */
+.app-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #1a1a2e;
+    border-bottom: 1px solid #333;
+    width: 100%;
+}
+
+/* Restore container to row layout */
+.container {
+    display: flex; 
+    flex-direction: row;
+    width: 100%;
+    height: calc(100vh - 50px); /* Subtract header height */
+}
     </style>
 </head>
 <body>
@@ -532,20 +573,18 @@
     
 <!-- Template for the main app after authentication -->
 <template id="app-template">
-    <div class="container">
-        <div class="app-header">
-            <h3>Google Drive Editor</h3>
-            <div class="header-actions">
-                <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </div>
-            <div class="logout-btn-container">
-                <button id="logout-btn" class="logout-btn">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
-            </div>
+    <div class="app-header">
+        <h3>Google Drive Editor</h3>
+        <div class="header-right">
+            <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button id="logout-btn" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </div>
+    </div>
+    <div class="container">
         <div class="editor-pane">
             <div class="toolbar">
                 <div id="current-file-name">No file selected</div>
