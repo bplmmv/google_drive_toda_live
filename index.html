@@ -466,6 +466,58 @@
           color: #fff;
           background-color: #1e1e2e;
         }
+        /* Header layout styling */
+.app-header {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: #1a1a2e;
+    border-bottom: 1px solid #333;
+    position: relative;
+    width: 100%;
+}
+
+.header-actions {
+    margin-left: auto;
+    margin-right: 20px; /* Space between refresh and logout */
+    display: flex;
+    align-items: center;
+}
+
+.logout-btn-container {
+    display: flex;
+    margin-left: auto;
+}
+
+.logout-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: bold;
+}
+
+.logout-btn:hover {
+    background-color: #d32f2f;
+}
+
+/* Container needs to be full-width */
+.container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+}
+
+/* Adjust the main content area to account for the header */
+.editor-pane, .file-list-pane {
+    height: calc(100% - 50px);
+}
     </style>
 </head>
 <body>
@@ -478,14 +530,17 @@
         </div>
     </div>
     
-    <!-- Template for the main app after authentication -->
-    <template id="app-template">
+<!-- Template for the main app after authentication -->
+<template id="app-template">
+    <div class="container">
         <div class="app-header">
             <h3>Google Drive Editor</h3>
-            <div class="header-right">
+            <div class="header-actions">
                 <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
                     <i class="fas fa-sync-alt"></i>
                 </button>
+            </div>
+            <div class="logout-btn-container">
                 <button id="logout-btn" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
@@ -519,7 +574,8 @@
                 Loading files...
             </div>
         </div>
-    </template>
+    </div>
+</template>
     
     <!-- Template for the login screen -->
     <template id="login-template">

@@ -462,44 +462,29 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
-      // Add logout button in file list header - FAR from the refresh button
-      const fileListHeader = document.querySelector('.file-list-header');
-      if (fileListHeader) {
+      // Add logout button to the app header with proper spacing
+      const appHeader = document.querySelector('.app-header');
+      if (appHeader) {
         // First check if button already exists to avoid duplicates
         if (!document.getElementById('logout-btn')) {
-          // Create logout button with clear styling and good placement
+          // Create a dedicated container for the logout button 
+          const logoutBtnContainer = document.createElement('div');
+          logoutBtnContainer.className = 'logout-btn-container';
+          logoutBtnContainer.style.marginLeft = 'auto';
+          logoutBtnContainer.style.marginRight = '10px';
+          
+          // Create logout button 
           const logoutBtn = document.createElement('button');
           logoutBtn.id = 'logout-btn';
           logoutBtn.className = 'logout-btn';
           logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
           logoutBtn.addEventListener('click', logout);
           
-          // Style the button prominently but with good placement
-          logoutBtn.style.position = 'absolute';
-          logoutBtn.style.right = '10px';
-          logoutBtn.style.top = '60px';
-          logoutBtn.style.backgroundColor = '#f44336';
-          logoutBtn.style.color = 'white';
-          logoutBtn.style.border = 'none';
-          logoutBtn.style.borderRadius = '4px';
-          logoutBtn.style.padding = '8px 16px';
-          logoutBtn.style.cursor = 'pointer';
-          logoutBtn.style.display = 'flex';
-          logoutBtn.style.alignItems = 'center';
-          logoutBtn.style.gap = '6px';
-          logoutBtn.style.fontWeight = 'bold';
-          logoutBtn.style.zIndex = '100';
+          // Add button to container and container to header
+          logoutBtnContainer.appendChild(logoutBtn);
+          appHeader.appendChild(logoutBtnContainer);
           
-          // Add hover effect
-          logoutBtn.onmouseover = () => { logoutBtn.style.backgroundColor = '#d32f2f'; };
-          logoutBtn.onmouseout = () => { logoutBtn.style.backgroundColor = '#f44336'; };
-          
-          // Add button to the file list pane (outside the header)
-          const fileListPane = document.querySelector('.file-list-pane');
-          if (fileListPane) {
-            fileListPane.appendChild(logoutBtn);
-            console.log("Logout button added to file list pane");
-          }
+          console.log("Logout button added to header");
         } else {
           console.log("Logout button already exists");
         }
@@ -509,7 +494,7 @@ function initializeAppFunctionality() {
         if (appElement && !document.getElementById('logout-btn')) {
           const logoutBtnStandalone = document.createElement('button');
           logoutBtnStandalone.id = 'logout-btn';
-          logoutBtnStandalone.textContent = 'Logout';
+          logoutBtnStandalone.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
           logoutBtnStandalone.style.position = 'fixed';
           logoutBtnStandalone.style.top = '10px';
           logoutBtnStandalone.style.right = '10px';
@@ -518,14 +503,14 @@ function initializeAppFunctionality() {
           logoutBtnStandalone.style.color = 'white';
           logoutBtnStandalone.style.border = 'none';
           logoutBtnStandalone.style.borderRadius = '4px';
-          logoutBtnStandalone.style.padding = '8px 12px';
+          logoutBtnStandalone.style.padding = '8px 16px';
           logoutBtnStandalone.addEventListener('click', logout);
           appElement.appendChild(logoutBtnStandalone);
           console.log("Fallback logout button added");
         }
       }
       
-      // Set up drop zone behavior for the editor
+      // Rest of your initialization code...
       const editorDropzone = document.getElementById('editor-dropzone');
       
       editorDropzone.addEventListener('dragover', e => {
