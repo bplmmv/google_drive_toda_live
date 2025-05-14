@@ -30,6 +30,8 @@ function showAppLoading() {
         position: absolute;
         top: 0;
         left: 0;
+        z-index: 1000;
+        background-color: #1e1e2e;
       }
       .loading-content {
         text-align: center;
@@ -58,6 +60,27 @@ function showAppLoading() {
 
 // Show loading indicator immediately when script runs
 showAppLoading();
+
+// Prevent login flash on refresh by checking localStorage first
+try {
+  const storedAuth = localStorage.getItem('toda_google_auth_token');
+  if (!storedAuth) {
+    // No need to modify the DOM if we have no token - login page will show naturally
+    console.log("No stored authentication found");
+  } else {
+    const authData = JSON.parse(storedAuth);
+    if (authData.expiresAt && authData.expiresAt > Date.now()) {
+      // Force keep loading screen visible until we fully initialize
+      console.log("Found valid stored token, showing loading screen");
+    } else {
+      // Token expired, will need to log in again
+      console.log('Stored token expired');
+      localStorage.removeItem('toda_google_auth_token');
+    }
+  }
+} catch (e) {
+  console.error('Error checking token on startup:', e);
+}
 
 // Load environment variables from env.js
 console.log('Attempting to load environment variables from env.js');
@@ -439,26 +462,22 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
-      // Add logout button to the header with improved placement
-      const appHeader = document.querySelector('.app-header');
-      if (appHeader) {
+      // Add logout button in file list header - FAR from the refresh button
+      const fileListHeader = document.querySelector('.file-list-header');
+      if (fileListHeader) {
         // First check if button already exists to avoid duplicates
         if (!document.getElementById('logout-btn')) {
-          // Create container for right-side header items
-          const headerRight = document.createElement('div');
-          headerRight.className = 'header-right';
-          headerRight.style.marginLeft = 'auto';
-          headerRight.style.display = 'flex';
-          headerRight.style.alignItems = 'center';
-          
-          // Create logout button with more visible styling and better positioning
+          // Create logout button with clear styling and good placement
           const logoutBtn = document.createElement('button');
           logoutBtn.id = 'logout-btn';
-          logoutBtn.className = 'header-btn logout-btn';
+          logoutBtn.className = 'logout-btn';
           logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
           logoutBtn.addEventListener('click', logout);
           
-          // Style the button more prominently and move it further from refresh
+          // Style the button prominently but with good placement
+          logoutBtn.style.position = 'absolute';
+          logoutBtn.style.right = '10px';
+          logoutBtn.style.top = '60px';
           logoutBtn.style.backgroundColor = '#f44336';
           logoutBtn.style.color = 'white';
           logoutBtn.style.border = 'none';
@@ -469,17 +488,18 @@ function initializeAppFunctionality() {
           logoutBtn.style.alignItems = 'center';
           logoutBtn.style.gap = '6px';
           logoutBtn.style.fontWeight = 'bold';
-          logoutBtn.style.marginLeft = '20px'; // More space from other buttons
+          logoutBtn.style.zIndex = '100';
           
           // Add hover effect
           logoutBtn.onmouseover = () => { logoutBtn.style.backgroundColor = '#d32f2f'; };
           logoutBtn.onmouseout = () => { logoutBtn.style.backgroundColor = '#f44336'; };
           
-          // Add button to container and container to header
-          headerRight.appendChild(logoutBtn);
-          appHeader.appendChild(headerRight);
-          
-          console.log("Logout button added to header");
+          // Add button to the file list pane (outside the header)
+          const fileListPane = document.querySelector('.file-list-pane');
+          if (fileListPane) {
+            fileListPane.appendChild(logoutBtn);
+            console.log("Logout button added to file list pane");
+          }
         } else {
           console.log("Logout button already exists");
         }

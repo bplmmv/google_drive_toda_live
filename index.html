@@ -381,6 +381,91 @@
           outline: 2px solid #4285f4;
           outline-offset: -2px;
         }
+
+        /* New styles for the header-right container and logout button */
+        .header-right {
+          margin-left: auto;
+          display: flex;
+          align-items: center;
+        }
+        
+        .logout-btn {
+          background-color: #f44336;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 8px 16px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-weight: bold;
+          margin-left: 30px; /* Increased spacing from refresh button */
+        }
+        
+        .logout-btn:hover {
+          background-color: #d32f2f;
+        }
+        
+        .app-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px;
+          background-color: #1a1a2e;
+          border-bottom: 1px solid #333;
+        }
+
+        /* Styling for the loading screen */
+        .loading-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          width: 100%;
+          color: #fff;
+          padding: 0;
+          margin: 0;
+          position: absolute;
+          top: 0;
+          left: 0;
+          z-index: 1000;
+          background-color: #1e1e2e;
+        }
+        
+        .loading-content {
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 2rem;
+        }
+        
+        .loading-spinner {
+          width: 60px;
+          height: 60px;
+          border: 5px solid rgba(255, 255, 255, 0.3);
+          border-radius: 50%;
+          border-top-color: #fff;
+          animation: spin 1s ease-in-out infinite;
+          margin: 30px 0;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        /* Logout message styling */
+        .logout-message {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          text-align: center;
+          color: #fff;
+          background-color: #1e1e2e;
+        }
     </style>
 </head>
 <body>
@@ -395,6 +480,17 @@
     
     <!-- Template for the main app after authentication -->
     <template id="app-template">
+        <div class="app-header">
+            <h3>Google Drive Editor</h3>
+            <div class="header-right">
+                <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
         <div class="editor-pane">
             <div class="toolbar">
                 <div id="current-file-name">No file selected</div>
@@ -415,9 +511,6 @@
         <div class="file-list-pane">
             <div class="file-list-header">
                 <h3>Your Google Drive Files</h3>
-                <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
             </div>
             <div id="breadcrumb-container" class="breadcrumb-container">
                 <!-- Breadcrumbs will be added here -->
@@ -427,7 +520,8 @@
             </div>
         </div>
     </template>
-        <!-- Template for the login screen -->
+    
+    <!-- Template for the login screen -->
     <template id="login-template">
         <div class="login-container">
             <h2>Google Drive Docs-Sheets Editor - TODA Live</h2>
