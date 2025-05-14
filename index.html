@@ -6,9 +6,9 @@
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
     <title>Google Drive Docs-Sheets Editor - TODA Live</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Add empty favicon to prevent 404 errors -->
     <link rel="icon" href="data:,">
     <style>
+        /* Base styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -19,7 +19,7 @@
             overflow: hidden;
         }
         
-        /* Basic layout */
+        /* Layout structure */
         #app {
             display: flex;
             flex-direction: column;
@@ -27,7 +27,6 @@
             height: 100vh;
         }
         
-        /* Header */
         .app-header {
             display: flex;
             align-items: center;
@@ -37,14 +36,13 @@
             height: 40px;
         }
         
-        /* Main content container */
         .main-container {
             display: flex;
             flex: 1;
             overflow: hidden;
         }
         
-        /* Left side - editor area */
+        /* Editor pane (left side) */
         .editor-pane {
             flex: 7;
             display: flex;
@@ -54,7 +52,23 @@
             overflow: hidden;
         }
         
-        /* Right side - file browser */
+        .toolbar {
+            padding: 10px;
+            background-color: #1a1a2e;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            color: #e4e6eb;
+        }
+        
+        .editor-content {
+            flex: 1;
+            padding: 20px;
+            overflow: auto;
+            background-color: #16161f;
+        }
+        
+        /* File browser pane (right side) */
         .file-list-pane {
             flex: 3;
             padding: 20px;
@@ -65,46 +79,45 @@
             box-sizing: border-box;
         }
         
-        /* File list header styling */
-        .file-list-header {
+        /* File list header with refresh button */
+        .file-list-title {
             display: flex;
-            justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
-            color: #ffffff;
         }
         
-        /* Editor toolbar */
-        .toolbar {
-            padding: 10px;
-            background-color: #1a1a2e;
-            border-bottom: 1px solid #333;
+        .file-list-title h3 {
+            margin-right: 10px;
+        }
+        
+        /* Breadcrumb navigation */
+        .breadcrumb-container {
             display: flex;
-            justify-content: space-between;
-            color: #e4e6eb;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            background-color: #2d2d44;
+            padding: 8px;
+            border-radius: 4px;
         }
         
-        /* Editor content area */
-        .editor-content {
-            flex: 1;
-            padding: 20px;
-            overflow: auto;
-            background-color: #16161f;
+        .breadcrumb-item {
+            color: #61dafb;
+            cursor: pointer;
+            padding: 3px 6px;
+            border-radius: 3px;
         }
         
-        /* Editor styling */
-        #editor {
-            width: 100%;
-            height: 100%;
-            border: none;
-            resize: none;
-            outline: none;
-            font-size: 14px;
-            background-color: #16161f;
-            color: #e4e6eb;
+        .breadcrumb-item:hover {
+            background-color: #353555;
         }
         
-        /* File items in the list */
+        .breadcrumb-separator {
+            color: #aaa;
+            margin: 0 5px;
+        }
+        
+        /* File items styling */
         .file-item {
             padding: 10px;
             margin-bottom: 5px;
@@ -134,49 +147,65 @@
             border-left: 3px solid #61dafb;
         }
         
-        /* Button styles */
-        .save-btn {
-            background-color: #61dafb;
-            color: #1a1a2e;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
+        .back-item {
             font-weight: bold;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
         }
         
-        .save-btn:hover {
-            background-color: #4fa8d2;
+        /* Folder and file type specific colors */
+        .folder-item .file-icon {
+            color: #ffd866;
         }
         
-        .login-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            width: 100%;
-            background-color: #1a1a2e;
-            color: #e4e6eb;
+        .doc-item .file-icon {
+            color: #61dafb;
         }
         
-        .login-btn {
-            background-color: #61dafb;
-            color: #1a1a2e;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 20px;
+        .sheet-item .file-icon {
+            color: #a9dc76;
         }
         
-        .login-btn:hover {
-            background-color: #4fa8d2;
+        .shared-drive-item .file-icon {
+            color: #a9dc76;
         }
         
-        /* Drop zone styling */
+        /* Drive sections styling */
+        .drive-section {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #2d2d44;
+        }
+        
+        .drive-section h4 {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            color: #61dafb;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+        
+        .files-list {
+            margin-left: 10px;
+        }
+        
+        .section-subheader {
+            margin-top: 10px;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 0.9em;
+            padding-left: 5px;
+        }
+        
+        .empty-message {
+            color: #aaa;
+            font-style: italic;
+            margin-left: 10px;
+        }
+        
+        /* Dropzone styling */
         .dropzone {
             border: 2px dashed #444;
             padding: 20px;
@@ -195,7 +224,7 @@
             background-color: #1d3a53;
         }
         
-        /* Toolbar buttons */
+        /* Button styles */
         .toolbar-buttons {
             display: flex;
             gap: 10px;
@@ -219,30 +248,246 @@
             opacity: 0.5;
         }
         
-        /* Drive sections styling */
-        .drive-section {
-            margin-bottom: 20px;
-            border-radius: 8px;
-            padding: 10px;
-            background-color: #2d2d44;
+        .save-btn {
+            background-color: #61dafb;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
         }
         
-        .drive-section h4 {
-            margin-top: 10px;
-            margin-bottom: 10px;
+        .save-btn:hover {
+            background-color: #4fa8d2;
+        }
+        
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: bold;
+        }
+        
+        .logout-btn:hover {
+            background-color: #d32f2f;
+        }
+        
+        .refresh-btn {
+            background: none;
+            border: none;
             color: #61dafb;
-            border-bottom: 1px solid #444;
-            padding-bottom: 5px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
         }
         
-        .files-list {
-            margin-left: 10px;
+        .refresh-btn:hover {
+            background-color: #353555;
         }
         
-        .empty-message {
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .login-btn {
+            background-color: #61dafb;
+            color: #1a1a2e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        
+        .login-btn:hover {
+            background-color: #4fa8d2;
+        }
+        
+        /* Header positioning */
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Login screen */
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            background-color: #1a1a2e;
+            color: #e4e6eb;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+        
+        .login-container.visible {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Loading screen */
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100%;
+            color: #fff;
+            padding: 0;
+            margin: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            background-color: #1e1e2e;
+        }
+        
+        .loading-content {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin: 30px 0;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Logout message */
+        .logout-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            color: #fff;
+            background-color: #1e1e2e;
+        }
+        
+        /* Loading and error states */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
             color: #aaa;
             font-style: italic;
-            margin-left: 10px;
+        }
+        
+        .error-message {
+            padding: 20px;
+            color: #ff6188;
+            text-align: center;
+        }
+        
+        /* Embedded iframe styling */
+        iframe {
+            background-color: white;
+            border-radius: 4px;
+        }
+        
+        /* Editor styling */
+        #editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 14px;
+            background-color: #16161f;
+            color: #e4e6eb;
+        }
+        
+        /* Spreadsheet editor specific styles */
+        #sheets-editor {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+        
+        .sheets-toolbar {
+            background-color: #2d2d44;
+            padding: 8px 16px;
+            border-bottom: 1px solid #444;
+            color: #e4e6eb;
+        }
+        
+        .sheets-content {
+            flex: 1;
+            overflow: auto;
+            background-color: #16161f;
+            padding: 10px;
+        }
+        
+        .sheets-table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: #fff;
+            color: #333;
+        }
+        
+        .sheets-table th {
+            background-color: #f1f3f4;
+            border: 1px solid #ddd;
+            padding: 8px;
+            font-weight: normal;
+            text-align: center;
+            color: #666;
+        }
+        
+        .sheets-table th:first-child {
+            background-color: #f1f3f4;
+            width: 40px;
+        }
+        
+        .sheets-table tr:first-child th {
+            background-color: #dde7fd;
+            color: #1a73e8;
+        }
+        
+        .sheets-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            min-width: 80px;
+        }
+        
+        .sheets-table td:focus {
+            outline: 2px solid #4285f4;
+            outline-offset: -2px;
         }
         
         /* Responsive layout */
@@ -262,276 +507,10 @@
                 border-left: none;
             }
         }
-        
-        /* File type specific styling */
-        .section-subheader {
-          margin-top: 10px;
-          margin-bottom: 5px;
-          color: #aaa;
-          font-size: 0.9em;
-          padding-left: 5px;
-        }
-        
-        .folder-item .file-icon {
-          color: #ffd866;
-        }
-        
-        .doc-item .file-icon {
-          color: #61dafb;
-        }
-        
-        .sheet-item .file-icon {
-          color: #a9dc76;
-        }
-        
-        /* Loading and error states */
-        .loading {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          color: #aaa;
-          font-style: italic;
-        }
-        
-        .error-message {
-          padding: 20px;
-          color: #ff6188;
-          text-align: center;
-        }
-        
-        /* Refresh button */
-        .refresh-btn {
-          background: none;
-          border: none;
-          color: #61dafb;
-          cursor: pointer;
-          padding: 8px;
-          border-radius: 50%;
-          transition: background-color 0.3s;
-        }
-        
-        .refresh-btn:hover {
-          background-color: #353555;
-        }
-        
-        .refresh-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        
-        /* Breadcrumb navigation */
-        .breadcrumb-container {
-          display: flex;
-          align-items: center;
-          margin-bottom: 15px;
-          flex-wrap: wrap;
-          background-color: #2d2d44;
-          padding: 8px;
-          border-radius: 4px;
-        }
-        
-        .breadcrumb-item {
-          color: #61dafb;
-          cursor: pointer;
-          padding: 3px 6px;
-          border-radius: 3px;
-        }
-        
-        .breadcrumb-item:hover {
-          background-color: #353555;
-        }
-        
-        .breadcrumb-separator {
-          color: #aaa;
-          margin: 0 5px;
-        }
-        
-        .back-item {
-          font-weight: bold;
-          border-bottom: 1px solid #444;
-          padding-bottom: 10px;
-          margin-bottom: 10px;
-        }
-        
-        .shared-drive-item .file-icon {
-          color: #a9dc76;
-        }
-        
-        /* Embedded iframe styling */
-        iframe {
-          background-color: white;
-          border-radius: 4px;
-        }
-        
-        /* Spreadsheet editor specific styles */
-        #sheets-editor {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          width: 100%;
-        }
-        
-        .sheets-toolbar {
-          background-color: #2d2d44;
-          padding: 8px 16px;
-          border-bottom: 1px solid #444;
-          color: #e4e6eb;
-        }
-        
-        .sheets-content {
-          flex: 1;
-          overflow: auto;
-          background-color: #16161f;
-          padding: 10px;
-        }
-        
-        .sheets-table {
-          border-collapse: collapse;
-          width: 100%;
-          background-color: #fff;
-          color: #333;
-        }
-        
-        .sheets-table th {
-          background-color: #f1f3f4;
-          border: 1px solid #ddd;
-          padding: 8px;
-          font-weight: normal;
-          text-align: center;
-          color: #666;
-        }
-        
-        .sheets-table th:first-child {
-          background-color: #f1f3f4;
-          width: 40px;
-        }
-        
-        .sheets-table tr:first-child th {
-          background-color: #dde7fd;
-          color: #1a73e8;
-        }
-        
-        .sheets-table td {
-          border: 1px solid #ddd;
-          padding: 6px;
-          min-width: 80px;
-        }
-        
-        .sheets-table td:focus {
-          outline: 2px solid #4285f4;
-          outline-offset: -2px;
-        }
-        
-        /* Header actions styling */
-        .header-left {
-          display: flex;
-          align-items: center;
-        }
-        
-        .header-right {
-          margin-left: auto;
-          display: flex;
-          align-items: center;
-        }
-        
-        /* File list title with refresh button */
-        .file-list-title {
-          display: flex;
-          align-items: center;
-          margin-bottom: 15px;
-        }
-        
-        .file-list-title h3 {
-          margin-right: 10px;
-        }
-        
-        /* Logout button styling */
-        .logout-btn {
-          background-color: #f44336;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 8px 16px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-weight: bold;
-        }
-        
-        .logout-btn:hover {
-          background-color: #d32f2f;
-        }
-        
-        /* Loading screen styles */
-        .loading-container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          width: 100%;
-          color: #fff;
-          padding: 0;
-          margin: 0;
-          position: absolute;
-          top: 0;
-          left: 0;
-          z-index: 1000;
-          background-color: #1e1e2e;
-        }
-        
-        .loading-content {
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 2rem;
-        }
-        
-        .loading-spinner {
-          width: 60px;
-          height: 60px;
-          border: 5px solid rgba(255, 255, 255, 0.3);
-          border-radius: 50%;
-          border-top-color: #fff;
-          animation: spin 1s ease-in-out infinite;
-          margin: 30px 0;
-        }
-        
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        
-        /* Logout message styling */
-        .logout-message {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          text-align: center;
-          color: #fff;
-          background-color: #1e1e2e;
-        }
-        
-        /* Hide login screen initially to prevent flash */
-        .login-container {
-          visibility: hidden;
-          opacity: 0;
-          transition: opacity 0.25s;
-        }
-        
-        /* Only show login after check */
-        .login-container.visible {
-          visibility: visible;
-          opacity: 1;
-        }
     </style>
 </head>
 <body>
     <div id="app">
-        <!-- Initial loading state instead of showing login right away -->
         <div class="loading-container">
             <div class="loading-content">
                 <h2>Loading Google Drive Editor...</h2>
@@ -597,10 +576,8 @@
         </div>
     </template>
 
-    <!-- SortableJS for drag-and-drop functionality -->
+    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    
-    <!-- Google API Client Library -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
     
