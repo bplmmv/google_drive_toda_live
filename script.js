@@ -1,3 +1,51 @@
+// Create a loading indicator immediately
+let loadingIndicatorAdded = false;
+function showAppLoading() {
+  if (loadingIndicatorAdded) return;
+  
+  const appElement = document.getElementById('app');
+  if (appElement) {
+    appElement.innerHTML = `
+      <div class="loading-container">
+        <h2>Loading Google Drive Editor...</h2>
+        <div class="loading-spinner"></div>
+        <p>Please wait while we restore your session</p>
+      </div>
+    `;
+    
+    // Add spinner styling
+    const style = document.createElement('style');
+    style.textContent = `
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #fff;
+        padding: 2rem;
+      }
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+        margin: 20px 0;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    loadingIndicatorAdded = true;
+  }
+}
+
+// Show loading indicator immediately when script runs
+showAppLoading();
+
 // Load environment variables from env.js
 console.log('Attempting to load environment variables from env.js');
 
@@ -140,10 +188,16 @@ function initializeApp() {
           callback: handleAuthResponse,
         });
         
-        // Add event listener for login button (only if it exists)
-        const loginBtn = document.getElementById('login-btn');
-        if (loginBtn) {
-          loginBtn.addEventListener('click', handleAuthClick);
+        // Now we know we need to show the login screen
+        const appTemplate = document.getElementById('login-template');
+        if (appTemplate) {
+          document.getElementById('app').innerHTML = appTemplate.innerHTML;
+          
+          // Add event listener for login button
+          const loginBtn = document.getElementById('login-btn');
+          if (loginBtn) {
+            loginBtn.addEventListener('click', handleAuthClick);
+          }
         }
       }
     }, 100);
@@ -329,41 +383,69 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
-      // Add logout button to the header
+      // Add logout button to the header in a more robust way
       const appHeader = document.querySelector('.app-header');
       if (appHeader) {
-        const logoutBtn = document.createElement('button');
-        logoutBtn.id = 'logout-btn';
-        logoutBtn.className = 'header-btn';
-        logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-        logoutBtn.addEventListener('click', logout);
-        appHeader.appendChild(logoutBtn);
-        
-        // Add some styling for the logout button
-        const style = document.createElement('style');
-        style.textContent = `
-          #logout-btn {
-            margin-left: auto;
-            background-color: #f44336;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          }
-          #logout-btn:hover {
-            background-color: #d32f2f;
-          }
-          .app-header {
-            display: flex;
-            align-items: center;
-          }
-        `;
-        document.head.appendChild(style);
+        // First check if button already exists to avoid duplicates
+        if (!document.getElementById('logout-btn')) {
+          // Create container for right-side header items
+          const headerRight = document.createElement('div');
+          headerRight.className = 'header-right';
+          headerRight.style.marginLeft = 'auto';
+          headerRight.style.display = 'flex';
+          headerRight.style.alignItems = 'center';
+          
+          // Create logout button with more visible styling
+          const logoutBtn = document.createElement('button');
+          logoutBtn.id = 'logout-btn';
+          logoutBtn.className = 'header-btn logout-btn';
+          logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+          logoutBtn.addEventListener('click', logout);
+          
+          // Style the button more prominently
+          logoutBtn.style.backgroundColor = '#f44336';
+          logoutBtn.style.color = 'white';
+          logoutBtn.style.border = 'none';
+          logoutBtn.style.borderRadius = '4px';
+          logoutBtn.style.padding = '8px 12px';
+          logoutBtn.style.cursor = 'pointer';
+          logoutBtn.style.display = 'flex';
+          logoutBtn.style.alignItems = 'center';
+          logoutBtn.style.gap = '6px';
+          logoutBtn.style.fontWeight = 'bold';
+          
+          // Add hover effect
+          logoutBtn.onmouseover = () => { logoutBtn.style.backgroundColor = '#d32f2f'; };
+          logoutBtn.onmouseout = () => { logoutBtn.style.backgroundColor = '#f44336'; };
+          
+          // Add button to container and container to header
+          headerRight.appendChild(logoutBtn);
+          appHeader.appendChild(headerRight);
+          
+          console.log("Logout button added to header");
+        } else {
+          console.log("Logout button already exists");
+        }
+      } else {
+        // Alternative placement if header not found
+        const appElement = document.getElementById('app');
+        if (appElement && !document.getElementById('logout-btn')) {
+          const logoutBtnStandalone = document.createElement('button');
+          logoutBtnStandalone.id = 'logout-btn';
+          logoutBtnStandalone.textContent = 'Logout';
+          logoutBtnStandalone.style.position = 'fixed';
+          logoutBtnStandalone.style.top = '10px';
+          logoutBtnStandalone.style.right = '10px';
+          logoutBtnStandalone.style.zIndex = '1000';
+          logoutBtnStandalone.style.backgroundColor = '#f44336';
+          logoutBtnStandalone.style.color = 'white';
+          logoutBtnStandalone.style.border = 'none';
+          logoutBtnStandalone.style.borderRadius = '4px';
+          logoutBtnStandalone.style.padding = '8px 12px';
+          logoutBtnStandalone.addEventListener('click', logout);
+          appElement.appendChild(logoutBtnStandalone);
+          console.log("Fallback logout button added");
+        }
       }
       
       // Set up drop zone behavior for the editor
