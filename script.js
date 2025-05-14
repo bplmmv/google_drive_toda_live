@@ -36,6 +36,138 @@ const API_SCOPE = 'https://www.googleapis.com/auth/drive.file ' +
                  'https://www.googleapis.com/auth/spreadsheets ' +
                  'https://www.googleapis.com/auth/spreadsheets.readonly';
                  
+// Add this after the API_SCOPE declaration
+
+// Add token persistence
+const TOKEN_STORAGE_KEY = 'toda_google_auth_token';
+
+// Update the handleAuthResponse function to store the token
+function handleAuthResponse(response) {
+  if (response.error !== undefined) {
+    console.error('Auth error:', response);
+    return;
+  }
+  
+  console.log("User successfully authenticated");
+  isAuthenticated = true;
+  
+  // Store the token in localStorage
+  try {
+    const token = gapi.auth.getToken();
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+        token: token,
+        expiresAt: Date.now() + (token.expires_in * 1000)
+      }));
+    }
+  } catch (e) {
+    console.error('Error saving token to localStorage:', e);
+  }
+  
+  // Replace login content with the app template
+  const appTemplate = document.getElementById('app-template');
+  document.getElementById('app').innerHTML = appTemplate.innerHTML;
+  
+  // Initialize app functionality after successful authentication
+  try {
+    initializeAppFunctionality().catch(error => {
+      console.error("Failed to initialize app functionality:", error);
+      document.getElementById('app').innerHTML = `
+        <div class="error-container">
+          <h2>Initialization Error</h2>
+          <p>Could not initialize the application.</p>
+          <p>Error: ${error.message}</p>
+          <button onclick="location.reload()">Try Again</button>
+        </div>
+      `;
+    });
+  } catch (error) {
+    console.error("Exception during app initialization:", error);
+    document.getElementById('app').innerHTML = `
+      <div class="error-container">
+        <h2>Initialization Error</h2>
+        <p>Could not initialize the application.</p>
+        <p>Error: ${error.message}</p>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+    `;
+  }
+}
+
+// Add this to the initializeApp function, at the beginning
+function initializeApp() {
+  console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
+  
+  // Check for stored token
+  const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (storedAuth) {
+    try {
+      const authData = JSON.parse(storedAuth);
+      // Check if token is still valid (not expired)
+      if (authData.expiresAt && authData.expiresAt > Date.now()) {
+        console.log('Found valid stored token, restoring session...');
+        gapi.auth.setToken(authData.token);
+        isAuthenticated = true;
+      } else {
+        console.log('Stored token expired, removing');
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('Error parsing stored token:', e);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  }
+  
+  // Load the auth2 library first
+  gapi.load('client:auth2', {
+    callback: function() {
+      console.log('GAPI client loaded');
+      initGapiClient();
+    },
+    onerror: function(error) {
+      console.error('Error loading GAPI client:', error);
+      document.querySelector('#app').innerHTML = `
+        <div class="error-container">
+          <h2>Failed to Load Google API</h2>
+          <p>Error: ${error?.message || 'Unknown error'}</p>
+          <p>Please check your internet connection and try again.</p>
+        </div>
+      `;
+    }
+  });
+  
+  // If we're already authenticated from the stored token, show the app
+  if (isAuthenticated) {
+    // Replace login content with the app template
+    setTimeout(() => {
+      const appTemplate = document.getElementById('app-template');
+      document.getElementById('app').innerHTML = appTemplate.innerHTML;
+      
+      // Initialize app functionality
+      initializeAppFunctionality().catch(error => {
+        console.error("Failed to initialize app functionality:", error);
+      });
+    }, 500); // Short delay to make sure GAPI is fully initialized
+  } else {
+    // Initialize Google Identity Services for new login
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: API_SCOPE,
+      callback: handleAuthResponse,
+    });
+    
+    // Add event listener for login button
+    document.getElementById('login-btn').addEventListener('click', handleAuthClick);
+  }
+}
+
+// Add a logout function
+function logout() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  isAuthenticated = false;
+  location.reload();
+}
+                 
 // Global variables
 let currentFile = null;
 let editorContent = '';
@@ -669,6 +801,8 @@ async function openFile(fileId, mimeType) {
 
 // Update the openDocument function to remove the blue vertical bar
 
+// Update the openDocument function to fix the width issues
+
 async function openDocument(fileId, editorContainer) {
   // Get the file content as HTML
   const contentResponse = await fetch(
@@ -709,6 +843,7 @@ async function openDocument(fileId, editorContainer) {
         margin: 0;
         padding: 0;
         overflow: auto;
+        width: 100%;
       }
       body {
         font-family: Arial, sans-serif;
@@ -719,6 +854,18 @@ async function openDocument(fileId, editorContainer) {
         box-sizing: border-box;
         max-width: 100%;
         overflow-x: hidden;
+      }
+      /* Fix Google Docs page layout */
+      .kix-appview-editor, .docs-ui-unprintable, .kix-page {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      /* Remove Google Docs page width restrictions */
+      .kix-page-paginated {
+        width: auto !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
       }
       /* Remove any vertical dividers or borders */
       div[style*="border-right"], 
@@ -732,10 +879,16 @@ async function openDocument(fileId, editorContainer) {
       .kix-page-column {
         width: 100% !important;
         border: none !important;
+        max-width: 100% !important;
       }
       /* Remove any absolute positioning that might cause layout issues */
       [style*="position: absolute"] {
         position: static !important;
+      }
+      /* Override inline styles for the main content area */
+      [role="presentation"] {
+        width: 100% !important;
+        max-width: 100% !important;
       }
       table {
         border-collapse: collapse;
@@ -765,10 +918,32 @@ async function openDocument(fileId, editorContainer) {
         col.style.maxWidth = '100%';
         col.style.border = 'none';
       });
+
+      // Force main content area width
+      const contentDivs = iframeDoc.querySelectorAll('.kix-page, .kix-page-content-wrapper');
+      contentDivs.forEach(div => {
+        div.style.width = '100%';
+        div.style.maxWidth = '100%';
+        div.style.margin = '0';
+        div.style.padding = '0';
+      });
+
+      // Override inline width styles that might be causing the blue bar
+      const allElements = iframeDoc.querySelectorAll('*[style*="width"]');
+      allElements.forEach(el => {
+        // Don't change widths for small elements like buttons
+        if (!el.classList.contains('kix-lineview-text-block') && 
+            !el.classList.contains('kix-selection-overlay')) {
+          el.style.width = '100%';
+          el.style.maxWidth = '100%';
+        }
+      });
     };
     
     // Clean up the document
     cleanUpDoc();
+    // Run it again after a short delay to handle any dynamically loaded content
+    setTimeout(cleanUpDoc, 100);
     
     // Make it editable
     iframeDoc.body.contentEditable = 'true';
