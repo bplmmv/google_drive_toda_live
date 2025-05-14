@@ -476,47 +476,90 @@ function logout() {
   }, 1000);
 }
 
+// Update this function to fix the initialization error
+
 function initializeAppFunctionality() {
   return new Promise((resolve, reject) => {
     try {
-      // Add event listeners
-      document.getElementById('save-btn').addEventListener('click', saveFile);
-      document.getElementById('close-btn').addEventListener('click', closeDocument);
-      document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
+      console.log("Setting up app functionality");
       
-      // Set up breadcrumb container event handlers
-      document.getElementById('breadcrumb-container').addEventListener('click', handleBreadcrumbClick);
-      
-      // Set up drag-and-drop functionality
-      const editorDropzone = document.getElementById('editor-dropzone');
-      
-      editorDropzone.addEventListener('dragover', e => {
-        e.preventDefault();
-        editorDropzone.classList.add('active');
-      });
-      
-      editorDropzone.addEventListener('dragleave', () => {
-        editorDropzone.classList.remove('active');
-      });
-      
-      editorDropzone.addEventListener('drop', e => {
-        e.preventDefault();
-        editorDropzone.classList.remove('active');
-        
-        const fileId = e.dataTransfer.getData('fileId');
-        if (fileId) {
-          openFile(fileId);
+      // Wait briefly to ensure DOM elements are available
+      setTimeout(() => {
+        try {
+          // Check if elements exist before adding event listeners
+          const saveBtn = document.getElementById('save-btn');
+          const closeBtn = document.getElementById('close-btn');
+          const refreshBtn = document.getElementById('refresh-btn');
+          const breadcrumbContainer = document.getElementById('breadcrumb-container');
+          const logoutBtn = document.getElementById('logout-btn');
+          
+          // Add event listeners only if elements exist
+          if (saveBtn) saveBtn.addEventListener('click', saveFile);
+          if (closeBtn) closeBtn.addEventListener('click', closeDocument);
+          if (refreshBtn) refreshBtn.addEventListener('click', refreshFileList);
+          if (breadcrumbContainer) breadcrumbContainer.addEventListener('click', handleBreadcrumbClick);
+          if (logoutBtn) logoutBtn.addEventListener('click', logout);
+          
+          // Set up drag-and-drop functionality
+          const editorDropzone = document.getElementById('editor-dropzone');
+          if (editorDropzone) {
+            editorDropzone.addEventListener('dragover', e => {
+              e.preventDefault();
+              editorDropzone.classList.add('active');
+            });
+            
+            editorDropzone.addEventListener('dragleave', () => {
+              editorDropzone.classList.remove('active');
+            });
+            
+            editorDropzone.addEventListener('drop', e => {
+              e.preventDefault();
+              editorDropzone.classList.remove('active');
+              
+              const fileId = e.dataTransfer.getData('fileId');
+              if (fileId) {
+                openFile(fileId);
+              }
+            });
+          }
+          
+          // Load files from Google Drive
+          loadDriveFiles(currentFolderId)
+            .then(resolve)
+            .catch(reject);
+          
+        } catch (innerError) {
+          console.error("Error in delayed initialization:", innerError);
+          reject(innerError);
         }
-      });
+      }, 500); // Delay to ensure DOM is ready
       
-      // Load files from Google Drive
-      loadDriveFiles(currentFolderId)
-        .then(resolve)
-        .catch(reject);
     } catch (error) {
+      console.error("Error in app initialization:", error);
       reject(error);
     }
   });
+}
+
+// Also update the auth restoration code in initializeApp function 
+// Around line 175, replace this section:
+
+// If authenticated, show the app
+if (isAuthenticated) {
+  // Replace login content with the app template
+  setTimeout(() => {
+    const appTemplate = document.getElementById('app-template');
+    document.getElementById('app').innerHTML = appTemplate.innerHTML;
+    
+    // Initialize app functionality
+    initializeAppFunctionality()
+      .then(() => {
+        console.log("App functionality initialized successfully");
+      })
+      .catch(error => {
+        console.error("Failed to initialize app functionality:", error);
+      });
+  }, 500); // Longer delay to make sure GAPI is fully initialized
 }
 
 function handleBreadcrumbClick(event) {
@@ -573,6 +616,44 @@ function renderBreadcrumbs() {
 
 async function loadDriveFiles(folderId = 'root') {
   try {
+    // First check if token is valid
+    try {
+      const token = gapi.auth.getToken();
+      if (!token || !token.access_token) {
+        console.error("Missing or invalid token when loading files");
+        throw new Error("Authentication token is missing. Please log in again.");
+      }
+      
+      // Validate token with a simple request
+      const testResponse = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: {
+          'Authorization': `Bearer ${token.access_token}`
+        }
+      });
+      
+      if (!testResponse.ok) {
+        console.error("Token validation failed:", testResponse.status);
+        if (testResponse.status === 401) {
+          // Token is invalid - clear it and show login
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
+          isAuthenticated = false;
+          throw new Error("Your session has expired. Please log in again.");
+        }
+      }
+    } catch (tokenError) {
+      console.error("Token validation error:", tokenError);
+      // Show login screen
+      isAuthenticated = false;
+      showLoginPage();
+      return;
+    }
+
+    // Original function continues here...
+    // Display loading state
+    const fileListElement = document.getElementById('file-list');
+    if (fileListElement) {
+      fileListElement.innerHTML = '<div class="loading">Loading files...</div>';
+    }
     // Display loading state
     document.getElementById('file-list').innerHTML = '<div class="loading">Loading files...</div>';
     
