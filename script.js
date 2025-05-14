@@ -329,6 +329,43 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
+      // Add logout button to the header
+      const appHeader = document.querySelector('.app-header');
+      if (appHeader) {
+        const logoutBtn = document.createElement('button');
+        logoutBtn.id = 'logout-btn';
+        logoutBtn.className = 'header-btn';
+        logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+        logoutBtn.addEventListener('click', logout);
+        appHeader.appendChild(logoutBtn);
+        
+        // Add some styling for the logout button
+        const style = document.createElement('style');
+        style.textContent = `
+          #logout-btn {
+            margin-left: auto;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
+          #logout-btn:hover {
+            background-color: #d32f2f;
+          }
+          .app-header {
+            display: flex;
+            align-items: center;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
       // Set up drop zone behavior for the editor
       const editorDropzone = document.getElementById('editor-dropzone');
       
