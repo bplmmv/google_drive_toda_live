@@ -435,9 +435,15 @@
           align-items: center;
         }
         
-        /* Important - Ensure good spacing between refresh and logout */
-        .header-right .refresh-btn {
-          margin-right: 80px; /* Very large gap between refresh and logout */
+        /* File list title with refresh button */
+        .file-list-title {
+          display: flex;
+          align-items: center;
+          margin-bottom: 15px;
+        }
+        
+        .file-list-title h3 {
+          margin-right: 10px;
         }
         
         /* Logout button styling */
@@ -508,15 +514,30 @@
           color: #fff;
           background-color: #1e1e2e;
         }
+        
+        /* Hide login screen initially to prevent flash */
+        .login-container {
+          visibility: hidden;
+          opacity: 0;
+          transition: opacity 0.25s;
+        }
+        
+        /* Only show login after check */
+        .login-container.visible {
+          visibility: visible;
+          opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div id="app">
-        <!-- This content will be replaced once authenticated -->
-        <div class="login-container">
-            <h2>Google Drive Docs-Sheets Editor - TODA Live</h2>
-            <p>Please sign in to access your Google Drive files</p>
-            <button id="login-btn" class="login-btn">Sign in with Google</button>
+        <!-- Initial loading state instead of showing login right away -->
+        <div class="loading-container">
+            <div class="loading-content">
+                <h2>Loading Google Drive Editor...</h2>
+                <div class="loading-spinner"></div>
+                <p>Please wait while we restore your session</p>
+            </div>
         </div>
     </div>
     
@@ -527,9 +548,6 @@
                 <h3>Google Drive Editor</h3>
             </div>
             <div class="header-right">
-                <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
                 <button id="logout-btn" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
@@ -554,8 +572,11 @@
                 </div>
             </div>
             <div class="file-list-pane">
-                <div class="file-list-header">
+                <div class="file-list-title">
                     <h3>Your Google Drive Files</h3>
+                    <button id="refresh-btn" class="refresh-btn" title="Refresh file list">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                 </div>
                 <div id="breadcrumb-container" class="breadcrumb-container">
                     <!-- Breadcrumbs will be added here -->

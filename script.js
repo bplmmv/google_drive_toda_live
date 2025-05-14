@@ -3,77 +3,64 @@ let loadingIndicatorAdded = false;
 function showAppLoading() {
   if (loadingIndicatorAdded) return;
   
-  const appElement = document.getElementById('app');
-  if (appElement) {
-    appElement.innerHTML = `
-      <div class="loading-container">
-        <div class="loading-content">
-          <h2>Loading Google Drive Editor...</h2>
-          <div class="loading-spinner"></div>
-          <p>Please wait while we restore your session</p>
-        </div>
-      </div>
-    `;
-    
-    // Add spinner styling with better centering
-    const style = document.createElement('style');
-    style.textContent = `
-      .loading-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        width: 100%;
-        color: #fff;
-        padding: 0;
-        margin: 0;
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 1000;
-        background-color: #1e1e2e;
-      }
-      .loading-content {
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 2rem;
-      }
-      .loading-spinner {
-        width: 60px;
-        height: 60px;
-        border: 5px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 1s ease-in-out infinite;
-        margin: 30px 0;
-      }
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
-    loadingIndicatorAdded = true;
-  }
+  // Loading indicator is already in initial HTML 
+  loadingIndicatorAdded = true;
+  
+  // Add spinner styling with better centering if needed
+  const style = document.createElement('style');
+  style.textContent = `
+    .loading-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100%;
+      color: #fff;
+      padding: 0;
+      margin: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+      background-color: #1e1e2e;
+    }
+    .loading-content {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin: 30px 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
 }
 
-// Show loading indicator immediately when script runs
-showAppLoading();
+// We start with the loading indicator already in the HTML
+// No need to inject it dynamically
 
 // Prevent login flash on refresh by checking localStorage first
 try {
   const storedAuth = localStorage.getItem('toda_google_auth_token');
   if (!storedAuth) {
-    // No need to modify the DOM if we have no token - login page will show naturally
     console.log("No stored authentication found");
   } else {
     const authData = JSON.parse(storedAuth);
     if (authData.expiresAt && authData.expiresAt > Date.now()) {
-      // Force keep loading screen visible until we fully initialize
-      console.log("Found valid stored token, showing loading screen");
+      console.log("Found valid stored token, keeping loading screen");
+      // Keep loading indicator, will be replaced with app after init
     } else {
-      // Token expired, will need to log in again
       console.log('Stored token expired');
       localStorage.removeItem('toda_google_auth_token');
     }
@@ -245,6 +232,14 @@ function showLoginPage() {
   const appTemplate = document.getElementById('login-template');
   if (appTemplate) {
     document.getElementById('app').innerHTML = appTemplate.innerHTML;
+    
+    // Make login visible with transition
+    setTimeout(() => {
+      const loginContainer = document.querySelector('.login-container');
+      if (loginContainer) {
+        loginContainer.classList.add('visible');
+      }
+    }, 100);
     
     // Add event listener for login button
     const loginBtn = document.getElementById('login-btn');
@@ -418,8 +413,10 @@ window.addEventListener('load', () => {
   setTimeout(checkStoredToken, 1000);
 });
 
-// Updated logout function to break the loop
+// Updated logout function to properly handle logout
 function logout() {
+  console.log("Logout function called");
+  
   // Set the logout flag to true
   isLoggingOut = true;
   
@@ -431,12 +428,37 @@ function logout() {
   try {
     if (gapi && gapi.auth) {
       gapi.auth.setToken(null);
+      console.log("GAPI token cleared");
     }
   } catch (e) {
     console.error('Error clearing GAPI token:', e);
   }
   
-  // Redirect to login page
+  // Clear Google Identity token if available
+  try {
+    if (google && google.accounts && google.accounts.oauth2) {
+      // Revoke token
+      const token = gapi.auth.getToken();
+      if (token && token.access_token) {
+        fetch(`https://oauth2.googleapis.com/revoke?token=${token.access_token}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        })
+        .then(response => {
+          console.log("Token revocation response:", response.status);
+        })
+        .catch(e => {
+          console.error("Error revoking token:", e);
+        });
+      }
+    }
+  } catch (e) {
+    console.error('Error revoking Google token:', e);
+  }
+  
+  // Show logout message
   const appElement = document.getElementById('app');
   if (appElement) {
     appElement.innerHTML = `
@@ -449,9 +471,9 @@ function logout() {
   
   // Use timeout to ensure UI updates before reload
   setTimeout(() => {
-    // Use window.location.href to force a clean reload
-    window.location.href = window.location.origin + window.location.pathname;
-  }, 500);
+    // Force a hard reload to clear any cached state
+    window.location.href = window.location.origin + window.location.pathname + "?logout=" + Date.now();
+  }, 1000);
 }
 
 function initializeAppFunctionality() {
@@ -462,55 +484,10 @@ function initializeAppFunctionality() {
       document.getElementById('close-btn').addEventListener('click', closeDocument);
       document.getElementById('refresh-btn').addEventListener('click', refreshFileList);
       
-      // Add logout button to the app header with proper spacing
-      const appHeader = document.querySelector('.app-header');
-      if (appHeader) {
-        // First check if button already exists to avoid duplicates
-        if (!document.getElementById('logout-btn')) {
-          // Create a dedicated container for the logout button 
-          const logoutBtnContainer = document.createElement('div');
-          logoutBtnContainer.className = 'logout-btn-container';
-          logoutBtnContainer.style.marginLeft = 'auto';
-          logoutBtnContainer.style.marginRight = '10px';
-          
-          // Create logout button 
-          const logoutBtn = document.createElement('button');
-          logoutBtn.id = 'logout-btn';
-          logoutBtn.className = 'logout-btn';
-          logoutBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-          logoutBtn.addEventListener('click', logout);
-          
-          // Add button to container and container to header
-          logoutBtnContainer.appendChild(logoutBtn);
-          appHeader.appendChild(logoutBtnContainer);
-          
-          console.log("Logout button added to header");
-        } else {
-          console.log("Logout button already exists");
-        }
-      } else {
-        // Alternative placement if header not found
-        const appElement = document.getElementById('app');
-        if (appElement && !document.getElementById('logout-btn')) {
-          const logoutBtnStandalone = document.createElement('button');
-          logoutBtnStandalone.id = 'logout-btn';
-          logoutBtnStandalone.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
-          logoutBtnStandalone.style.position = 'fixed';
-          logoutBtnStandalone.style.top = '10px';
-          logoutBtnStandalone.style.right = '10px';
-          logoutBtnStandalone.style.zIndex = '1000';
-          logoutBtnStandalone.style.backgroundColor = '#f44336';
-          logoutBtnStandalone.style.color = 'white';
-          logoutBtnStandalone.style.border = 'none';
-          logoutBtnStandalone.style.borderRadius = '4px';
-          logoutBtnStandalone.style.padding = '8px 16px';
-          logoutBtnStandalone.addEventListener('click', logout);
-          appElement.appendChild(logoutBtnStandalone);
-          console.log("Fallback logout button added");
-        }
-      }
+      // Set up breadcrumb container event handlers
+      document.getElementById('breadcrumb-container').addEventListener('click', handleBreadcrumbClick);
       
-      // Rest of your initialization code...
+      // Set up drag-and-drop functionality
       const editorDropzone = document.getElementById('editor-dropzone');
       
       editorDropzone.addEventListener('dragover', e => {
@@ -531,9 +508,6 @@ function initializeAppFunctionality() {
           openFile(fileId);
         }
       });
-      
-      // Set up breadcrumb container event handlers
-      document.getElementById('breadcrumb-container').addEventListener('click', handleBreadcrumbClick);
       
       // Load files from Google Drive
       loadDriveFiles(currentFolderId)
