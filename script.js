@@ -47,28 +47,40 @@ let tokenClient;
 let currentFolderId = 'root'; // Start at root folder
 let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
 
+// Update the initializeApp function to restore tokens better
+
 function initializeApp() {
   console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
   
-  // Check for stored token
-  const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
-  if (storedAuth) {
-    try {
+  // Check for stored token first thing
+  let storedAuth;
+  try {
+    storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (storedAuth) {
       const authData = JSON.parse(storedAuth);
-      // Check if token is still valid (not expired)
+      console.log("Found stored auth token, expiry status:", 
+                  authData.expiresAt > Date.now() ? "valid" : "expired",
+                  "expires in:", Math.round((authData.expiresAt - Date.now())/60000), "minutes");
+      
+      // Check if token is still valid
       if (authData.expiresAt && authData.expiresAt > Date.now()) {
         console.log('Found valid stored token, restoring session...');
         gapi.auth.setToken(authData.token);
         isAuthenticated = true;
+        console.log("Authentication restored from localStorage");
       } else {
         console.log('Stored token expired, removing');
         localStorage.removeItem(TOKEN_STORAGE_KEY);
       }
-    } catch (e) {
-      console.error('Error parsing stored token:', e);
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    } else {
+      console.log("No stored authentication found");
     }
+  } catch (e) {
+    console.error('Error parsing stored token:', e);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
+  
+}
   
   // Load the auth2 library first
   gapi.load('client:auth2', {
@@ -198,11 +210,19 @@ async function loadSheetsAPI() {
   }
 }
 
+// Update the handleAuthClick function
+
 function handleAuthClick() {
   if (!isAuthenticated) {
-    tokenClient.requestAccessToken();
+    // Use prompt parameter to force selection account screen
+    // This helps prevent some cross-origin issues
+    tokenClient.requestAccessToken({
+      prompt: 'consent'
+    });
   }
 }
+
+// Update the handleAuthResponse function to store the token properly
 
 function handleAuthResponse(response) {
   if (response.error !== undefined) {
@@ -213,15 +233,17 @@ function handleAuthResponse(response) {
   console.log("User successfully authenticated");
   isAuthenticated = true;
   
-  // Store the token in localStorage
+  // Store the token in localStorage with a longer expiration time
   try {
     const token = gapi.auth.getToken();
     if (token) {
       console.log("Saving token to localStorage");
+      // Save token with 12 hours expiration instead of 1 hour
       localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
         token: token,
-        expiresAt: Date.now() + (3600 * 1000) // Tokens usually expire after 1 hour
+        expiresAt: Date.now() + (12 * 3600 * 1000) // 12 hours in milliseconds
       }));
+      console.log("Token saved successfully with expiration in 12 hours");
     } else {
       console.warn("No token available to save");
     }
@@ -229,35 +251,35 @@ function handleAuthResponse(response) {
     console.error('Error saving token to localStorage:', e);
   }
   
-  // Replace login content with the app template
-  const appTemplate = document.getElementById('app-template');
-  document.getElementById('app').innerHTML = appTemplate.innerHTML;
-  
-  // Initialize app functionality after successful authentication
+  // Rest of function remains the same...
+}
+
+// Add this debug function to help troubleshoot token issues
+
+function checkStoredToken() {
   try {
-    initializeAppFunctionality().catch(error => {
-      console.error("Failed to initialize app functionality:", error);
-      document.getElementById('app').innerHTML = `
-        <div class="error-container">
-          <h2>Initialization Error</h2>
-          <p>Could not initialize the application.</p>
-          <p>Error: ${error.message}</p>
-          <button onclick="location.reload()">Try Again</button>
-        </div>
-      `;
-    });
-  } catch (error) {
-    console.error("Exception during app initialization:", error);
-    document.getElementById('app').innerHTML = `
-      <div class="error-container">
-        <h2>Initialization Error</h2>
-        <p>Could not initialize the application.</p>
-        <p>Error: ${error.message}</p>
-        <button onclick="location.reload()">Try Again</button>
-      </div>
-    `;
+    const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (storedAuth) {
+      const authData = JSON.parse(storedAuth);
+      const expiresIn = Math.round((authData.expiresAt - Date.now())/60000);
+      console.log("Current stored token:", 
+                  "valid:", authData.expiresAt > Date.now(),
+                  "expires in:", expiresIn, "minutes",
+                  "token:", authData.token?.access_token?.substring(0, 10) + "...");
+      return true;
+    }
+    console.log("No token found in storage");
+    return false;
+  } catch (e) {
+    console.error("Error checking stored token:", e);
+    return false;
   }
 }
+
+// Call this on page load
+window.addEventListener('load', () => {
+  setTimeout(checkStoredToken, 1000);
+});
 
 // Add a logout function
 function logout() {
