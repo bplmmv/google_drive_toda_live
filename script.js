@@ -47,15 +47,16 @@ let tokenClient;
 let currentFolderId = 'root'; // Start at root folder
 let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
 
-// Update the initializeApp function to restore tokens better
-
 function initializeApp() {
   console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
   
-  // Check for stored token first thing
-  let storedAuth;
+  // We'll restore the token later, after gapi is fully loaded
+  let storedToken = null;
+  let tokenExpiresAt = null;
+  
+  // Check for stored token first thing, but just store it for later use
   try {
-    storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
+    const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (storedAuth) {
       const authData = JSON.parse(storedAuth);
       console.log("Found stored auth token, expiry status:", 
@@ -64,10 +65,10 @@ function initializeApp() {
       
       // Check if token is still valid
       if (authData.expiresAt && authData.expiresAt > Date.now()) {
-        console.log('Found valid stored token, restoring session...');
-        gapi.auth.setToken(authData.token);
-        isAuthenticated = true;
-        console.log("Authentication restored from localStorage");
+        console.log('Found valid stored token, will restore after GAPI loads');
+        // Save for later
+        storedToken = authData.token;
+        tokenExpiresAt = authData.expiresAt;
       } else {
         console.log('Stored token expired, removing');
         localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -80,13 +81,39 @@ function initializeApp() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
   
-}
-  
   // Load the auth2 library first
   gapi.load('client:auth2', {
     callback: function() {
       console.log('GAPI client loaded');
+      
+      // NOW we can restore the token if we have one
+      if (storedToken) {
+        try {
+          gapi.auth.setToken(storedToken);
+          isAuthenticated = true;
+          console.log("Authentication restored from localStorage");
+        } catch (e) {
+          console.error("Failed to restore authentication:", e);
+          isAuthenticated = false;
+        }
+      }
+      
+      // Continue with API initialization
       initGapiClient();
+      
+      // If authenticated, show the app
+      if (isAuthenticated) {
+        // Replace login content with the app template
+        setTimeout(() => {
+          const appTemplate = document.getElementById('app-template');
+          document.getElementById('app').innerHTML = appTemplate.innerHTML;
+          
+          // Initialize app functionality
+          initializeAppFunctionality().catch(error => {
+            console.error("Failed to initialize app functionality:", error);
+          });
+        }, 500); // Short delay to make sure GAPI is fully initialized
+      }
     },
     onerror: function(error) {
       console.error('Error loading GAPI client:', error);
@@ -100,28 +127,26 @@ function initializeApp() {
     }
   });
   
-  // If we're already authenticated from the stored token, show the app
-  if (isAuthenticated) {
-    // Replace login content with the app template
-    setTimeout(() => {
-      const appTemplate = document.getElementById('app-template');
-      document.getElementById('app').innerHTML = appTemplate.innerHTML;
-      
-      // Initialize app functionality
-      initializeAppFunctionality().catch(error => {
-        console.error("Failed to initialize app functionality:", error);
-      });
-    }, 500); // Short delay to make sure GAPI is fully initialized
-  } else {
-    // Initialize Google Identity Services for new login
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: API_SCOPE,
-      callback: handleAuthResponse,
-    });
-    
-    // Add event listener for login button
-    document.getElementById('login-btn')?.addEventListener('click', handleAuthClick);
+  // Only setup the login button if we're not already authenticated
+  if (!isAuthenticated) {
+    // Wait for the Google Identity Services to load
+    const checkGisLoaded = setInterval(() => {
+      if (window.google && google.accounts && google.accounts.oauth2) {
+        clearInterval(checkGisLoaded);
+        // Initialize Google Identity Services for login
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: API_SCOPE,
+          callback: handleAuthResponse,
+        });
+        
+        // Add event listener for login button (only if it exists)
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+          loginBtn.addEventListener('click', handleAuthClick);
+        }
+      }
+    }, 100);
   }
 }
 
@@ -210,19 +235,13 @@ async function loadSheetsAPI() {
   }
 }
 
-// Update the handleAuthClick function
-
 function handleAuthClick() {
   if (!isAuthenticated) {
-    // Use prompt parameter to force selection account screen
-    // This helps prevent some cross-origin issues
     tokenClient.requestAccessToken({
       prompt: 'consent'
     });
   }
 }
-
-// Update the handleAuthResponse function to store the token properly
 
 function handleAuthResponse(response) {
   if (response.error !== undefined) {
@@ -251,11 +270,25 @@ function handleAuthResponse(response) {
     console.error('Error saving token to localStorage:', e);
   }
   
-  // Rest of function remains the same...
+  // Replace login content with the app template
+  const appTemplate = document.getElementById('app-template');
+  document.getElementById('app').innerHTML = appTemplate.innerHTML;
+  
+  // Initialize app functionality after successful authentication
+  initializeAppFunctionality().catch(error => {
+    console.error("Failed to initialize app functionality:", error);
+    document.getElementById('app').innerHTML = `
+      <div class="error-container">
+        <h2>Initialization Error</h2>
+        <p>Could not initialize the application.</p>
+        <p>Error: ${error.message}</p>
+        <button onclick="location.reload()">Try Again</button>
+      </div>
+    `;
+  });
 }
 
 // Add this debug function to help troubleshoot token issues
-
 function checkStoredToken() {
   try {
     const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
