@@ -667,6 +667,8 @@ async function openFile(fileId, mimeType) {
   }
 }
 
+// Update the openDocument function to remove the blue vertical bar
+
 async function openDocument(fileId, editorContainer) {
   // Get the file content as HTML
   const contentResponse = await fetch(
@@ -685,9 +687,9 @@ async function openDocument(fileId, editorContainer) {
   
   const htmlContent = await contentResponse.text();
   
-  // Create an iframe to display the document with improved styling for full space
-  editorContainer.style.position = 'relative';  // Make sure the container is positioned
-  editorContainer.style.height = '100%';        // Ensure container takes full height
+  // Create an iframe to display the document with improved styling
+  editorContainer.style.position = 'relative';
+  editorContainer.style.height = '100%';
   
   editorContainer.innerHTML = `
     <iframe id="editor" style="border: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></iframe>
@@ -696,13 +698,10 @@ async function openDocument(fileId, editorContainer) {
   const editorIframe = document.getElementById('editor');
   
   // Set the content of the iframe
-  const iframeDoc = editorIframe.contentDocument || 
-                   (editorIframe.contentWindow && editorIframe.contentWindow.document);
-  
   editorIframe.onload = () => {
     const iframeDoc = editorIframe.contentDocument || editorIframe.contentWindow.document;
     
-    // Add base styles to make the content look better and fill available space
+    // Add custom styles to remove the blue vertical bar and improve appearance
     const styleElement = iframeDoc.createElement('style');
     styleElement.textContent = `
       html, body {
@@ -718,6 +717,25 @@ async function openDocument(fileId, editorContainer) {
         color: #333;
         min-height: 100%;
         box-sizing: border-box;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      /* Remove any vertical dividers or borders */
+      div[style*="border-right"], 
+      div[style*="border-left"],
+      div[style*="vertical-align"],
+      .kix-page-column-border {
+        border: none !important;
+        background: none !important;
+      }
+      /* Fix Google Docs specific column issues */
+      .kix-page-column {
+        width: 100% !important;
+        border: none !important;
+      }
+      /* Remove any absolute positioning that might cause layout issues */
+      [style*="position: absolute"] {
+        position: static !important;
       }
       table {
         border-collapse: collapse;
@@ -733,6 +751,24 @@ async function openDocument(fileId, editorContainer) {
     `;
     
     iframeDoc.head.appendChild(styleElement);
+    
+    // Clean up any problematic HTML structure in the Google Docs export
+    const cleanUpDoc = () => {
+      // Remove any vertical dividers
+      const dividers = iframeDoc.querySelectorAll('div[style*="width: 1px"], div[style*="border-right"], .kix-page-column-border');
+      dividers.forEach(el => el.remove());
+      
+      // Fix column layouts
+      const columns = iframeDoc.querySelectorAll('.kix-page-column');
+      columns.forEach(col => {
+        col.style.width = '100%';
+        col.style.maxWidth = '100%';
+        col.style.border = 'none';
+      });
+    };
+    
+    // Clean up the document
+    cleanUpDoc();
     
     // Make it editable
     iframeDoc.body.contentEditable = 'true';
@@ -754,12 +790,15 @@ async function openDocument(fileId, editorContainer) {
     document.getElementById('save-btn').disabled = false;
   };
   
+  // Load the document into the iframe
+  const iframeDoc = editorIframe.contentDocument || 
+                  (editorIframe.contentWindow && editorIframe.contentWindow.document);
+  
   if (iframeDoc) {
     iframeDoc.open();
     iframeDoc.write(htmlContent);
     iframeDoc.close();
   } else {
-    // If direct access to iframe document is not working, set it on load
     editorIframe.srcdoc = htmlContent;
   }
 }
