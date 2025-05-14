@@ -47,9 +47,6 @@ function showAppLoading() {
   document.head.appendChild(style);
 }
 
-// We start with the loading indicator already in the HTML
-// No need to inject it dynamically
-
 // Prevent login flash on refresh by checking localStorage first
 try {
   const storedAuth = localStorage.getItem('toda_google_auth_token');
@@ -107,7 +104,6 @@ const API_SCOPE = 'https://www.googleapis.com/auth/drive.file ' +
                  'https://www.googleapis.com/auth/spreadsheets ' +
                  'https://www.googleapis.com/auth/spreadsheets.readonly';
                  
-// Add token persistence
 const TOKEN_STORAGE_KEY = 'toda_google_auth_token';
                  
 // Global variables
@@ -117,7 +113,7 @@ let isAuthenticated = false;
 let tokenClient;
 let currentFolderId = 'root'; // Start at root folder
 let folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }]; // Track folder navigation
-let isLoggingOut = false; // Add flag to prevent logout loop
+let isLoggingOut = false; // Flag to prevent logout loop
 
 function initializeApp() {
   console.log('Initializing app with API key:', GOOGLE_API_KEY?.substring(0, 5) + '...');
@@ -134,7 +130,7 @@ function initializeApp() {
   let storedToken = null;
   let tokenExpiresAt = null;
   
-  // Check for stored token first thing, but just store it for later use
+  // Check for stored token first
   try {
     const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (storedAuth) {
@@ -166,7 +162,7 @@ function initializeApp() {
     callback: function() {
       console.log('GAPI client loaded');
       
-      // NOW we can restore the token if we have one
+      // Restore the token if we have one
       if (storedToken) {
         try {
           gapi.auth.setToken(storedToken);
@@ -189,10 +185,14 @@ function initializeApp() {
           document.getElementById('app').innerHTML = appTemplate.innerHTML;
           
           // Initialize app functionality
-          initializeAppFunctionality().catch(error => {
-            console.error("Failed to initialize app functionality:", error);
-          });
-        }, 500); // Short delay to make sure GAPI is fully initialized
+          initializeAppFunctionality()
+            .then(() => {
+              console.log("App functionality initialized successfully");
+            })
+            .catch(error => {
+              console.error("Failed to initialize app functionality:", error);
+            });
+        }, 500); // Delay to make sure GAPI is fully initialized
       }
     },
     onerror: function(error) {
@@ -207,7 +207,7 @@ function initializeApp() {
     }
   });
   
-  // Only setup the login button if we're not already authenticated
+  // Setup login button if not already authenticated
   if (!isAuthenticated) {
     // Wait for the Google Identity Services to load
     const checkGisLoaded = setInterval(() => {
@@ -226,9 +226,8 @@ function initializeApp() {
   }
 }
 
-// Helper function to show login page
+// Show the login page
 function showLoginPage() {
-  // Now we know we need to show the login screen
   const appTemplate = document.getElementById('login-template');
   if (appTemplate) {
     document.getElementById('app').innerHTML = appTemplate.innerHTML;
@@ -265,7 +264,7 @@ async function initGapiClient() {
     gapi.client.setApiKey(GOOGLE_API_KEY);
     console.log("API key set successfully");
     
-    // Load Drive API and then Sheets API
+    // Load Drive API
     console.log("Loading Drive API...");
     await new Promise((resolve, reject) => {
       gapi.client.load('drive', 'v3', () => {
@@ -274,13 +273,12 @@ async function initGapiClient() {
       });
     });
     
-    // Then load the Sheets API
+    // Load Sheets API
     await loadSheetsAPI();
     
     console.log("GAPI client fully initialized");
     
-    // Only initialize app functionality if we weren't already authenticated
-    // (If we were already authenticated, it's handled in initializeApp)
+    // Init app functionality if already authenticated but not set up
     if (isAuthenticated && !document.getElementById('file-list')) {
       initializeAppFunctionality().catch(error => {
         console.error("Failed to initialize app functionality:", error);
@@ -310,7 +308,7 @@ async function loadSheetsAPI() {
   console.log("Loading Google Sheets API...");
   
   try {
-    // Load the sheets API
+    // Load the sheets API with timeout
     await new Promise((resolve, reject) => {
       const loadTimeout = setTimeout(() => {
         reject(new Error('Loading Sheets API timed out after 5 seconds'));
@@ -356,10 +354,10 @@ function handleAuthResponse(response) {
     const token = gapi.auth.getToken();
     if (token) {
       console.log("Saving token to localStorage");
-      // Save token with 12 hours expiration instead of 1 hour
+      // Save token with 12 hours expiration
       localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
         token: token,
-        expiresAt: Date.now() + (12 * 3600 * 1000) // 12 hours in milliseconds
+        expiresAt: Date.now() + (12 * 3600 * 1000) // 12 hours
       }));
       console.log("Token saved successfully with expiration in 12 hours");
     } else {
@@ -387,7 +385,7 @@ function handleAuthResponse(response) {
   });
 }
 
-// Add this debug function to help troubleshoot token issues
+// Debug function to help troubleshoot token issues
 function checkStoredToken() {
   try {
     const storedAuth = localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -408,23 +406,23 @@ function checkStoredToken() {
   }
 }
 
-// Call this on page load
+// Check token on page load
 window.addEventListener('load', () => {
   setTimeout(checkStoredToken, 1000);
 });
 
-// Updated logout function to properly handle logout
+// Logout function
 function logout() {
   console.log("Logout function called");
   
-  // Set the logout flag to true
+  // Set the logout flag
   isLoggingOut = true;
   
   // Clear auth token
   localStorage.removeItem(TOKEN_STORAGE_KEY);
   isAuthenticated = false;
   
-  // Clear GAPI token if available
+  // Clear GAPI token
   try {
     if (gapi && gapi.auth) {
       gapi.auth.setToken(null);
@@ -434,10 +432,9 @@ function logout() {
     console.error('Error clearing GAPI token:', e);
   }
   
-  // Clear Google Identity token if available
+  // Revoke Google Identity token
   try {
     if (google && google.accounts && google.accounts.oauth2) {
-      // Revoke token
       const token = gapi.auth.getToken();
       if (token && token.access_token) {
         fetch(`https://oauth2.googleapis.com/revoke?token=${token.access_token}`, {
@@ -469,24 +466,22 @@ function logout() {
     `;
   }
   
-  // Use timeout to ensure UI updates before reload
+  // Reload the page to reset state
   setTimeout(() => {
-    // Force a hard reload to clear any cached state
     window.location.href = window.location.origin + window.location.pathname + "?logout=" + Date.now();
   }, 1000);
 }
 
-// Update this function to fix the initialization error
-
+// Initialize app UI and functionality
 function initializeAppFunctionality() {
   return new Promise((resolve, reject) => {
     try {
       console.log("Setting up app functionality");
       
-      // Wait briefly to ensure DOM elements are available
+      // Wait to ensure DOM elements are available
       setTimeout(() => {
         try {
-          // Check if elements exist before adding event listeners
+          // Get UI elements
           const saveBtn = document.getElementById('save-btn');
           const closeBtn = document.getElementById('close-btn');
           const refreshBtn = document.getElementById('refresh-btn');
@@ -541,27 +536,7 @@ function initializeAppFunctionality() {
   });
 }
 
-// Also update the auth restoration code in initializeApp function 
-// Around line 175, replace this section:
-
-// If authenticated, show the app
-if (isAuthenticated) {
-  // Replace login content with the app template
-  setTimeout(() => {
-    const appTemplate = document.getElementById('app-template');
-    document.getElementById('app').innerHTML = appTemplate.innerHTML;
-    
-    // Initialize app functionality
-    initializeAppFunctionality()
-      .then(() => {
-        console.log("App functionality initialized successfully");
-      })
-      .catch(error => {
-        console.error("Failed to initialize app functionality:", error);
-      });
-  }, 500); // Longer delay to make sure GAPI is fully initialized
-}
-
+// Handle breadcrumb navigation
 function handleBreadcrumbClick(event) {
   const target = event.target.closest('.breadcrumb-item');
   if (target && target.dataset.folderId) {
@@ -578,6 +553,7 @@ function handleBreadcrumbClick(event) {
   }
 }
 
+// Refresh file list
 function refreshFileList() {
   // Update the refresh button to show loading state
   const refreshBtn = document.getElementById('refresh-btn');
@@ -592,6 +568,7 @@ function refreshFileList() {
   });
 }
 
+// Render breadcrumb navigation
 function renderBreadcrumbs() {
   const breadcrumbContainer = document.getElementById('breadcrumb-container');
   breadcrumbContainer.innerHTML = '';
@@ -614,9 +591,10 @@ function renderBreadcrumbs() {
   });
 }
 
+// Load files from Google Drive
 async function loadDriveFiles(folderId = 'root') {
   try {
-    // First check if token is valid
+    // Validate token first
     try {
       const token = gapi.auth.getToken();
       if (!token || !token.access_token) {
@@ -624,7 +602,7 @@ async function loadDriveFiles(folderId = 'root') {
         throw new Error("Authentication token is missing. Please log in again.");
       }
       
-      // Validate token with a simple request
+      // Test token with a simple request
       const testResponse = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
         headers: {
           'Authorization': `Bearer ${token.access_token}`
@@ -648,16 +626,13 @@ async function loadDriveFiles(folderId = 'root') {
       return;
     }
 
-    // Original function continues here...
     // Display loading state
     const fileListElement = document.getElementById('file-list');
     if (fileListElement) {
       fileListElement.innerHTML = '<div class="loading">Loading files...</div>';
     }
-    // Display loading state
-    document.getElementById('file-list').innerHTML = '<div class="loading">Loading files...</div>';
     
-    // Update the breadcrumb navigation
+    // Update breadcrumb navigation
     renderBreadcrumbs();
     
     // Query for files and folders in the current folder
@@ -673,8 +648,6 @@ async function loadDriveFiles(folderId = 'root') {
         'includeItemsFromAllDrives': true,
         'supportsAllDrives': true
       });
-      
-      console.log("Files response:", filesResponse);
       
       if (!filesResponse || !filesResponse.result) {
         throw new Error("Invalid API response structure - missing result object");
@@ -715,6 +688,7 @@ async function loadDriveFiles(folderId = 'root') {
   }
 }
 
+// Load shared drives
 async function loadSharedDrives() {
   console.log("Attempting to load shared drives...");
   try {
@@ -722,8 +696,6 @@ async function loadSharedDrives() {
       'pageSize': 50,
       'fields': 'drives(id, name)'
     });
-    
-    console.log("Shared drives response:", sharedDrivesResponse);
     
     const sharedDrives = sharedDrivesResponse.result.drives || [];
     console.log(`Found ${sharedDrives.length} shared drives`);
@@ -740,6 +712,7 @@ async function loadSharedDrives() {
   }
 }
 
+// Render file lists
 function renderFiles(folders, docs, sheets) {
   const fileListElement = document.getElementById('file-list');
   
@@ -759,7 +732,7 @@ function renderFiles(folders, docs, sheets) {
   const folderSection = document.createElement('div');
   folderSection.className = 'drive-section current-folder-section';
   
-  // If we're not at root, add "Back" option at the top
+  // Add "Back" option if not at root
   if (currentFolderId !== 'root' && folderBreadcrumbs.length > 1) {
     const backItem = document.createElement('div');
     backItem.className = 'file-item folder-item back-item';
@@ -832,7 +805,7 @@ function renderFiles(folders, docs, sheets) {
     folderSection.appendChild(sheetsList);
   }
   
-  // If no files or folders in current directory
+  // Show empty message if no files or folders
   if (folders.length === 0 && docs.length === 0 && sheets.length === 0) {
     const emptyMessage = document.createElement('p');
     emptyMessage.className = 'empty-message';
@@ -840,8 +813,7 @@ function renderFiles(folders, docs, sheets) {
     folderSection.appendChild(emptyMessage);
   }
   
-  // If we're at root, append to the file list directly
-  // Otherwise replace the current folder section if it exists
+  // Add to file list
   if (currentFolderId === 'root') {
     fileListElement.appendChild(folderSection);
   } else {
@@ -854,6 +826,7 @@ function renderFiles(folders, docs, sheets) {
   }
 }
 
+// Render shared drives
 function renderSharedDrives(sharedDrives) {
   const fileListElement = document.getElementById('file-list');
   
@@ -878,8 +851,7 @@ function renderSharedDrives(sharedDrives) {
     `;
     
     driveItem.addEventListener('click', () => {
-      // When clicked, load contents of this shared drive
-      // We'll consider shared drives as a separate branch in our navigation
+      // Navigate to shared drive
       folderBreadcrumbs = [{ id: 'root', name: 'My Drive' }, { id: drive.id, name: drive.name }];
       currentFolderId = drive.id;
       loadDriveFiles(drive.id);
@@ -890,7 +862,7 @@ function renderSharedDrives(sharedDrives) {
   
   sharedDrivesSection.appendChild(drivesList);
   
-  // Add to file list element
+  // Add to file list
   const existingSection = fileListElement.querySelector('.shared-drives-section');
   if (existingSection) {
     fileListElement.replaceChild(sharedDrivesSection, existingSection);
@@ -899,6 +871,7 @@ function renderSharedDrives(sharedDrives) {
   }
 }
 
+// Create folder item for display
 function createFolderItem(folder) {
   const folderItem = document.createElement('div');
   folderItem.className = 'file-item folder-item';
@@ -911,7 +884,6 @@ function createFolderItem(folder) {
   
   // Add click event to navigate into the folder
   folderItem.addEventListener('click', () => {
-    // Navigate into this folder
     folderBreadcrumbs.push({ id: folder.id, name: folder.name });
     currentFolderId = folder.id;
     loadDriveFiles(folder.id);
@@ -920,6 +892,7 @@ function createFolderItem(folder) {
   return folderItem;
 }
 
+// Create file item for display
 function createFileItem(file, itemClass) {
   const fileItem = document.createElement('div');
   fileItem.className = `file-item ${itemClass}`;
@@ -956,9 +929,10 @@ function createFileItem(file, itemClass) {
   return fileItem;
 }
 
+// Open a file for editing
 async function openFile(fileId, mimeType) {
   try {
-    // Get the file metadata
+    // Get file metadata
     const metadataResponse = await gapi.client.drive.files.get({
       fileId: fileId,
       fields: 'name,id,mimeType',
@@ -966,22 +940,22 @@ async function openFile(fileId, mimeType) {
     });
     
     const file = metadataResponse.result;
-    mimeType = file.mimeType; // Use the mime type from metadata to be sure
+    mimeType = file.mimeType; // Use the mime type from metadata
     
-    // Update UI first to show loading
+    // Update UI
     currentFile = file;
     document.getElementById('current-file-name').textContent = file.name;
     document.getElementById('save-btn').disabled = true; // Disable until loaded
-    document.getElementById('close-btn').disabled = false; // Enable close button immediately
+    document.getElementById('close-btn').disabled = false;
     
-    // Hide the dropzone and show the editor with loading message
+    // Hide dropzone and show editor
     document.getElementById('editor-dropzone').style.display = 'none';
     const editorContainer = document.getElementById('editor-container');
     editorContainer.style.display = 'block';
     editorContainer.innerHTML = '<div class="loading">Loading document...</div>';
     
     try {
-      // Handle different file types
+      // Open based on file type
       if (mimeType === 'application/vnd.google-apps.spreadsheet') {
         await openSpreadsheet(fileId, editorContainer);
       } else if (mimeType === 'application/vnd.google-apps.document') {
@@ -990,7 +964,7 @@ async function openFile(fileId, mimeType) {
         throw new Error(`Unsupported file type: ${mimeType}`);
       }
       
-      // Mark the selected file in the file list
+      // Mark selected file in list
       const fileItems = document.querySelectorAll('.file-item');
       fileItems.forEach(item => {
         if (item.getAttribute('data-file-id') === fileId) {
@@ -1015,8 +989,9 @@ async function openFile(fileId, mimeType) {
   }
 }
 
+// Open a Google Doc
 async function openDocument(fileId, editorContainer) {
-  // Get the file content as HTML
+  // Get file content as HTML
   const contentResponse = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/html&alt=media&key=${GOOGLE_API_KEY}`,
     {
@@ -1033,7 +1008,7 @@ async function openDocument(fileId, editorContainer) {
   
   const htmlContent = await contentResponse.text();
   
-  // Create an iframe to display the document with improved styling
+  // Create an iframe for the document
   editorContainer.style.position = 'relative';
   editorContainer.style.height = '100%';
   
@@ -1043,11 +1018,11 @@ async function openDocument(fileId, editorContainer) {
   
   const editorIframe = document.getElementById('editor');
   
-  // Set the content of the iframe
+  // Set iframe content
   editorIframe.onload = () => {
     const iframeDoc = editorIframe.contentDocument || editorIframe.contentWindow.document;
     
-    // Add custom styles to remove the blue vertical bar and improve appearance
+    // Add custom styles to improve appearance
     const styleElement = iframeDoc.createElement('style');
     styleElement.textContent = `
       html, body {
@@ -1117,9 +1092,9 @@ async function openDocument(fileId, editorContainer) {
     
     iframeDoc.head.appendChild(styleElement);
     
-    // Clean up any problematic HTML structure in the Google Docs export
+    // Clean up HTML structure
     const cleanUpDoc = () => {
-      // Remove any vertical dividers
+      // Remove vertical dividers
       const dividers = iframeDoc.querySelectorAll('div[style*="width: 1px"], div[style*="border-right"], .kix-page-column-border');
       dividers.forEach(el => el.remove());
       
@@ -1140,10 +1115,10 @@ async function openDocument(fileId, editorContainer) {
         div.style.padding = '0';
       });
 
-      // Override inline width styles that might be causing the blue bar
+      // Override inline width styles
       const allElements = iframeDoc.querySelectorAll('*[style*="width"]');
       allElements.forEach(el => {
-        // Don't change widths for small elements like buttons
+        // Don't change widths for small elements
         if (!el.classList.contains('kix-lineview-text-block') && 
             !el.classList.contains('kix-selection-overlay')) {
           el.style.width = '100%';
@@ -1154,14 +1129,14 @@ async function openDocument(fileId, editorContainer) {
     
     // Clean up the document
     cleanUpDoc();
-    // Run it again after a short delay to handle any dynamically loaded content
+    // Run again after a delay for dynamic content
     setTimeout(cleanUpDoc, 100);
     
     // Make it editable
     iframeDoc.body.contentEditable = 'true';
     iframeDoc.designMode = 'on';
     
-    // Store the content for saving later
+    // Track content changes
     const observer = new MutationObserver(() => {
       editorContent = iframeDoc.documentElement.outerHTML;
     });
@@ -1173,11 +1148,11 @@ async function openDocument(fileId, editorContainer) {
       characterData: true 
     });
     
-    // Enable the save button
+    // Enable save button
     document.getElementById('save-btn').disabled = false;
   };
   
-  // Load the document into the iframe
+  // Load document into iframe
   const iframeDoc = editorIframe.contentDocument || 
                   (editorIframe.contentWindow && editorIframe.contentWindow.document);
   
@@ -1190,6 +1165,7 @@ async function openDocument(fileId, editorContainer) {
   }
 }
 
+// Open a Google Sheet
 async function openSpreadsheet(fileId, editorContainer) {
   try {
     // Check if sheets API is available
@@ -1203,7 +1179,7 @@ async function openSpreadsheet(fileId, editorContainer) {
     
     console.log("Attempting to open spreadsheet:", fileId);
     
-    // First try to access with token directly
+    // Try to access with token directly
     try {
       const token = gapi.auth.getToken().access_token;
       const response = await fetch(
@@ -1226,7 +1202,7 @@ async function openSpreadsheet(fileId, editorContainer) {
     } catch (fetchError) {
       console.error("Fetch method failed:", fetchError);
       
-      // Fall back to gapi client if fetch fails
+      // Fall back to gapi client
       try {
         console.log("Trying with gapi client instead...");
         const response = await gapi.client.sheets.spreadsheets.get({
@@ -1246,8 +1222,9 @@ async function openSpreadsheet(fileId, editorContainer) {
   }
 }
 
+// Render spreadsheet in the editor
 function renderSpreadsheet(spreadsheet, editorContainer) {
-  // Create a simple HTML table representation of the spreadsheet
+  // Create HTML table of the spreadsheet
   let tableHTML = '<table class="sheets-table">';
   
   // Get the first sheet
@@ -1259,7 +1236,7 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
   const data = sheet.data[0];
   const rowCount = data.rowData ? data.rowData.length : 0;
   
-  // Set a reasonable default if no data (create empty 10x10 grid)
+  // Handle empty spreadsheet
   const emptyGrid = rowCount === 0;
   const displayRowCount = emptyGrid ? 10 : rowCount;
   
@@ -1273,7 +1250,6 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
       }
     }
   }
-  // Ensure we have at least some columns if spreadsheet is empty
   maxCols = Math.max(maxCols, 10);
   
   // Generate column headers (A, B, C, etc.)
@@ -1307,7 +1283,7 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
   
   tableHTML += '</table>';
   
-  // Create custom sheet editor
+  // Create sheet editor UI
   editorContainer.innerHTML = `
     <div id="sheets-editor">
       <div class="sheets-toolbar">
@@ -1319,7 +1295,7 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
     </div>
   `;
   
-  // Add event listeners to track changes
+  // Track cell changes
   const cells = editorContainer.querySelectorAll('td[contenteditable="true"]');
   cells.forEach(cell => {
     cell.addEventListener('input', () => {
@@ -1327,12 +1303,11 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
       const col = parseInt(cell.dataset.col);
       const value = cell.textContent;
       
-      // Store the updated cell value
-      // This will be used when saving
+      // Store updated cell value
       if (!editorContent) editorContent = {};
       if (!editorContent.updates) editorContent.updates = [];
       
-      // Check if we already have an update for this cell
+      // Check for existing update for this cell
       const existingUpdate = editorContent.updates.find(
         update => update.row === row && update.col === col
       );
@@ -1345,17 +1320,18 @@ function renderSpreadsheet(spreadsheet, editorContainer) {
     });
   });
   
-  // Store spreadsheet ID and sheet ID for saving
+  // Store spreadsheet data for saving
   editorContent = {
     spreadsheetId: spreadsheet.spreadsheetId,
     sheetId: sheet.properties.sheetId,
     updates: []
   };
   
-  // Enable the save button
+  // Enable save button
   document.getElementById('save-btn').disabled = false;
 }
 
+// Close the current document
 function closeDocument() {
   // Reset current file
   currentFile = null;
@@ -1377,6 +1353,7 @@ function closeDocument() {
   });
 }
 
+// Save the current file
 async function saveFile() {
   if (!currentFile) return;
   
@@ -1402,6 +1379,7 @@ async function saveFile() {
   }
 }
 
+// Save document changes
 async function saveDocument() {
   const editorIframe = document.getElementById('editor');
   const iframeDoc = editorIframe.contentDocument || editorIframe.contentWindow.document;
@@ -1410,7 +1388,7 @@ async function saveDocument() {
   // Create a blob with the HTML content
   const blob = new Blob([contentToSave], { type: 'text/html' });
   
-  // Create form data for the multipart request
+  // Create form data for multipart request
   const formData = new FormData();
   formData.append('metadata', new Blob([JSON.stringify({
     name: currentFile.name,
@@ -1418,7 +1396,7 @@ async function saveDocument() {
   })], { type: 'application/json' }));
   formData.append('file', blob);
   
-  // Use fetch API for the multipart upload
+  // Use fetch API for multipart upload
   const response = await fetch(
     `https://www.googleapis.com/upload/drive/v3/files/${currentFile.id}?uploadType=multipart&supportsAllDrives=true`,
     {
@@ -1436,6 +1414,7 @@ async function saveDocument() {
   }
 }
 
+// Save spreadsheet changes
 async function saveSpreadsheet() {
   // Check if sheets API is available
   if (!gapi.client.sheets) {
@@ -1454,24 +1433,24 @@ async function saveSpreadsheet() {
   console.log(`Saving ${editorContent.updates.length} cell updates to spreadsheet ${editorContent.spreadsheetId}`);
   
   try {
-    // Prepare batch update request with proper value detection
+    // Prepare batch update request
     const requests = editorContent.updates.map(update => {
-      // Determine value type (string, number, boolean, etc.)
+      // Determine value type
       let userEnteredValue = {};
       const value = update.value.trim();
       
-      // Check if it's a number
+      // Check if number
       if (!isNaN(value) && value !== '') {
         userEnteredValue = { numberValue: parseFloat(value) };
       } 
-      // Check if it's a boolean
+      // Check if boolean
       else if (value.toLowerCase() === 'true') {
         userEnteredValue = { boolValue: true };
       }
       else if (value.toLowerCase() === 'false') {
         userEnteredValue = { boolValue: false };
       }
-      // Otherwise treat as string
+      // Otherwise string
       else {
         userEnteredValue = { stringValue: value };
       }
@@ -1511,7 +1490,7 @@ async function saveSpreadsheet() {
     } catch (gapiError) {
       console.error("Error with GAPI method:", gapiError);
       
-      // Try the fetch API approach
+      // Fall back to fetch API
       const token = gapi.auth.getToken().access_token;
       const response = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${editorContent.spreadsheetId}:batchUpdate`,
